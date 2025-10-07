@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Market Sentiment Analyzer</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background-color: #0a0a0a;
+      color: #e5e5e5;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      color: #00bcd4;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background-color: #111;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 600px;
+      margin: 1rem auto;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+    }
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.1rem;
+      margin-bottom: 0.8rem;
+    }
+    .sentiment {
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border-radius: 8px;
+    }
+    .bullish { background-color: #003300; color: #00ff66; }
+    .neutral { background-color: #333300; color: #ffff66; }
+    .bearish { background-color: #330000; color: #ff6666; }
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      color: #666;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Crypto Market Sentiment Analyzer</h1>
+  <div class="subtitle">Using drawdown gap from All-Time High (ATH) for BTC vs Altcoins</div>
+
+  <div id="result" class="card">
+    <div class="stats"><strong>Bitcoin Drawdown:</strong> <span id="btcGap">Loading...</span></div>
+    <div class="stats"><strong>Average Altcoin Drawdown:</strong> <span id="altGap">Loading...</span></div>
+    <div class="stats"><strong>Altcoins Weakness Ratio:</strong> <span id="ratio">Loading...</span></div>
+    <div id="sentiment" class="sentiment">Loading sentiment...</div>
+  </div>
+
+  <footer>
+    Data from <a href="https://www.coingecko.com/" target="_blank" style="color:#00bcd4">CoinGecko</a><br>
+    Auto-refreshes every 60 seconds
+  </footer>
+
+  <script>
+    const API = "https://api.coingecko.com/api/v3/coins/markets";
+    const vsCurrency = "usd";
+    const perPage = 250; // max per request
+    const maxCoins = 500; // top 500 coins
+    const refreshMs = 60000; // 60 seconds
+
+    async function fetchCoins() {
+      let allCoins = [];
+      const pages = Math.ceil(maxCoins / perPage);
+      for (let page = 1; page <= pages; page++) {
+        const res = await fetch(`${API}?vs_currency=${vsCurrency}&order=market_cap_desc&per_page=${perPage}&page=${page}&sparkline=false`);
+        const data = await res.json();
+        allCoins = allCoins.concat(data);
+        await new Promise(r => setTimeout(r, 1500)); // spacing to avoid rate limit
+      }
+      return allCoins;
+    }
+
+    function analyzeSentiment(coins) {
+      const btc = coins.find(c => c.symbol === "btc");
+      const alts = coins.filter(c => c.symbol !== "btc");
+
+      if (!btc) return { btcGap: 0, avgAltGap: 0, ratio: 0, sentiment: "N/A" };
+
+      const btcGap = ((btc.ath - btc.current_price) / btc.ath) * 100;
+      const altGaps = alts
+        .map(c => ((c.ath - c.current_price) / c.ath) * 100)
+        .filter(g => g >= 0 && g < 10000);
+      const avgAltGap = altGaps.reduce((a, b) => a + b, 0) / altGaps.length;
+      const ratio = avgAltGap / btcGap;
+
+      let sentiment = "Neutral";
+      let sentimentClass = "neutral";
+
+      if (ratio <= 2.5) { sentiment = "Bullish"; sentimentClass = "bullish"; }
+      else if (ratio > 2.5 && ratio <= 6) { sentiment = "Neutral"; sentimentClass = "neutral"; }
+      else { sentiment = "Bearish"; sentimentClass = "bearish"; }
+
+      return { btcGap, avgAltGap, ratio, sentiment, sentimentClass };
+    }
+
+    async function updateSentiment() {
+      document.getElementById("btcGap").textContent = "Loading...";
+      document.getElementById("altGap").textContent = "Loading...";
+      document.getElementById("ratio").textContent = "Loading...";
+      document.getElementById("sentiment").textContent = "Updating...";
+      document.getElementById("sentiment").className = "sentiment";
+
+      try {
+        const coins = await fetchCoins();
+        const { btcGap, avgAltGap, ratio, sentiment, sentimentClass } = analyzeSentiment(coins);
+
+        document.getElementById("btcGap").textContent = `${btcGap.toFixed(2)}%`;
+        document.getElementById("altGap").textContent = `${avgAltGap.toFixed(2)}%`;
+        document.getElementById("ratio").textContent = `${ratio.toFixed(1)}×`;
+        document.getElementById("sentiment").textContent = `📈 Market Sentiment: ${sentiment}`;
+        document.getElementById("sentiment").classList.add(sentimentClass);
+      } catch (err) {
+        console.error("Error fetching or analyzing data:", err);
+        document.getElementById("sentiment").textContent = "⚠️ Error fetching data";
+      }
+    }
+
+    updateSentiment();
+    setInterval(updateSentiment, refreshMs);
+  </script>
+</body>
+</html>
