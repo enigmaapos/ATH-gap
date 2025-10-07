@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crypto ATH Drawdown Sentiment Analyzer</title>
+<style>
+  body { font-family: Arial, sans-serif; background:#0b0b0b; color:#eee; margin:0; padding:20px; }
+  h1 { text-align:center; color:#ffd700; }
+  .container { max-width:900px; margin:auto; background:#111; padding:20px; border-radius:10px; box-shadow:0 0 15px #000; }
+  .stats { display:flex; justify-content:space-around; margin-top:20px; }
+  .card { background:#1a1a1a; padding:15px; border-radius:10px; width:30%; text-align:center; }
+  .bullish { color:#00ff88; }
+  .neutral { color:#ffd700; }
+  .bearish { color:#ff4d4d; }
+  table { width:100%; border-collapse:collapse; margin-top:20px; }
+  th, td { border-bottom:1px solid #333; padding:8px; text-align:left; }
+  th { background:#222; }
+</style>
+</head>
+<body>
+
+<h1>📉 Crypto Drawdown Sentiment Analyzer</h1>
+<div class="container">
+  <div class="stats">
+    <div class="card"><h2>BTC Drawdown</h2><p id="btcGap">Loading...</p></div>
+    <div class="card"><h2>Altcoin Avg Drawdown</h2><p id="altGap">Loading...</p></div>
+    <div class="card"><h2>Market Sentiment</h2><p id="sentiment">Loading...</p></div>
+  </div>
+
+  <table id="coinsTable">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Name</th>
+        <th>Symbol</th>
+        <th>Price (USD)</th>
+        <th>ATH (USD)</th>
+        <th>Gap %</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+const apiUrl = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false";
+
+async function fetchAndAnalyze() {
+  try {
+    const res = await fetch(apiUrl);
+    const data = await res.json();
+
+    // compute gaps
+    const btc = data.find(c => c.symbol.toLowerCase() === "btc");
+    const alts = data.filter(c => c.symbol.toLowerCase() !== "btc");
+
+    const btcGap = ((btc.ath - btc.current_price) / btc.ath) * 100;
+    const altGaps = alts.map(c => ((c.ath - c.current_price) / c.ath) * 100);
+    const avgAltGap = altGaps.reduce((a,b) => a+b, 0) / altGaps.length;
+
+    // determine sentiment
+    let sentimentClass = "neutral";
+    let sentimentText = "Neutral";
+    const diff = avgAltGap - btcGap;
+    if (diff <= 20) { sentimentClass = "bullish"; sentimentText = "Bullish"; }
+    else if (diff <= 50) { sentimentClass = "neutral"; sentimentText = "Neutral"; }
+    else { sentimentClass = "bearish"; sentimentText = "Bearish"; }
+
+    // update summary
+    document.getElementById("btcGap").innerHTML = btcGap.toFixed(2) + "%";
+    document.getElementById("altGap").innerHTML = avgAltGap.toFixed(2) + "%";
+    const sentimentEl = document.getElementById("sentiment");
+    sentimentEl.innerHTML = sentimentText;
+    sentimentEl.className = sentimentClass;
+
+    // display top 100
+    const tbody = document.querySelector("#coinsTable tbody");
+    tbody.innerHTML = "";
+    data.forEach((coin, i) => {
+      const gap = ((coin.ath - coin.current_price) / coin.ath) * 100;
+      tbody.innerHTML += `
+        <tr>
+          <td>${i+1}</td>
+          <td>${coin.name}</td>
+          <td>${coin.symbol.toUpperCase()}</td>
+          <td>$${coin.current_price.toLocaleString()}</td>
+          <td>$${coin.ath.toLocaleString()}</td>
+          <td>${gap.toFixed(2)}%</td>
+        </tr>`;
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Error fetching CoinGecko data");
+  }
+}
+
+fetchAndAnalyze();
+// auto-refresh every 10 minutes
+setInterval(fetchAndAnalyze, 600000);
+</script>
+
+</body>
+</html>
