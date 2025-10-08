@@ -366,6 +366,14 @@ select {
 </div>
     </div>
 
+  <hr class="my-3 border-slate-700" />
+
+  <div class="stat-item" style="text-align:center;">
+  <strong>Bitcoin Dominance</strong>
+  <div id="btcDominance">Loading…</div>
+  <div id="btcDomInterpret" class="interpret"></div>
+  </div>
+
     <hr class="my-3 border-slate-700" />
 
     <div class="stat-item" style="text-align:center;">
@@ -849,6 +857,18 @@ function updatePhaseLadder(awr, btcGap) {
 
   bar.style.left = `${leftPercent}%`;
 }
+
+  async function fetchBTCdominance() {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/global');
+    const data = await res.json();
+    const dominance = data.data.market_cap_percentage.btc;
+    return dominance;
+  } catch (err) {
+    console.error("Error fetching BTC dominance:", err);
+    return null;
+  }
+  }
 
 // update UI helper
 function updateUI(btc, btcGap, sentimentResults) {
