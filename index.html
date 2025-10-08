@@ -858,6 +858,18 @@ function updatePhaseLadder(awr, btcGap) {
   bar.style.left = `${leftPercent}%`;
 }
 
+  async function fetchBTCdominance() {
+  try {
+    const res = await fetch('/api/coins');
+    const data = await res.json();
+    const dominance = data.data.market_cap_percentage.btc;
+    return dominance;
+  } catch (err) {
+    console.error("Error fetching BTC dominance:", err);
+    return null;
+  }
+  }
+
 // update UI helper
 async function updateUI(btc, btcGap, sentimentResults) {
   const btcGapEl = document.getElementById('btcGap');
