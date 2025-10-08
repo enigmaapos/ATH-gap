@@ -744,29 +744,6 @@ async function runAnalysis(forceFetch=false){
       // UI update
       updateUI(btc, btcGap, sentimentResults);
       renderTopTables(displayCoins);
-
-      // 🧭 Bitcoin Dominance Integration
-const btcDominance = await fetchBTCdominance();
-const btcDomEl = document.getElementById("btcDominance");
-const btcDomInterpret = document.getElementById("btcDomInterpret");
-
-if (btcDominance) {
-  btcDomEl.textContent = `${btcDominance.toFixed(2)}%`;
-
-  if (btcDominance > 55) {
-    btcDomInterpret.textContent = "🔵 Bitcoin-led phase — alts still lagging.";
-    btcDomInterpret.className = "interpret bearish";
-  } else if (btcDominance >= 40 && btcDominance <= 55) {
-    btcDomInterpret.textContent = "🟡 Mixed market — partial rotation ongoing.";
-    btcDomInterpret.className = "interpret neutral";
-  } else {
-    btcDomInterpret.textContent = "🟢 Altseason — capital flowing into altcoins!";
-    btcDomInterpret.className = "interpret bullish";
-  }
-} else {
-  btcDomEl.textContent = "—";
-  btcDomInterpret.textContent = "Unable to fetch data.";
-}
       
       // continue to fetch in background to keep fresh
       fetchAndUpdate(scope, displayN, /*background*/true);
@@ -802,29 +779,6 @@ async function fetchAndUpdate(scope, displayN, background = false) {
     updateUI(btc, btcGap, sentimentResults);
     renderTopTables(displayCoins);
 
-    // 🧭 Bitcoin Dominance Integration
-const btcDominance = await fetchBTCdominance();
-const btcDomEl = document.getElementById("btcDominance");
-const btcDomInterpret = document.getElementById("btcDomInterpret");
-
-if (btcDominance) {
-  btcDomEl.textContent = `${btcDominance.toFixed(2)}%`;
-
-  if (btcDominance > 55) {
-    btcDomInterpret.textContent = "🔵 Bitcoin-led phase — alts still lagging.";
-    btcDomInterpret.className = "interpret bearish";
-  } else if (btcDominance >= 40 && btcDominance <= 55) {
-    btcDomInterpret.textContent = "🟡 Mixed market — partial rotation ongoing.";
-    btcDomInterpret.className = "interpret neutral";
-  } else {
-    btcDomInterpret.textContent = "🟢 Altseason — capital flowing into altcoins!";
-    btcDomInterpret.className = "interpret bullish";
-  }
-} else {
-  btcDomEl.textContent = "—";
-  btcDomInterpret.textContent = "Unable to fetch data.";
-}
-
     // Success message
     const now = new Date().toLocaleTimeString();
     setProgress(`✅ Analyzed ${coins.length} coins • Updated: ${now}`);
@@ -847,29 +801,6 @@ if (btcDominance) {
 
       updateUI(btc, btcGap, sentimentResults);
       renderTopTables(displayCoins);
-
-  // 🧭 Bitcoin Dominance Integration
-const btcDominance = await fetchBTCdominance();
-const btcDomEl = document.getElementById("btcDominance");
-const btcDomInterpret = document.getElementById("btcDomInterpret");
-
-if (btcDominance) {
-  btcDomEl.textContent = `${btcDominance.toFixed(2)}%`;
-
-  if (btcDominance > 55) {
-    btcDomInterpret.textContent = "🔵 Bitcoin-led phase — alts still lagging.";
-    btcDomInterpret.className = "interpret bearish";
-  } else if (btcDominance >= 40 && btcDominance <= 55) {
-    btcDomInterpret.textContent = "🟡 Mixed market — partial rotation ongoing.";
-    btcDomInterpret.className = "interpret neutral";
-  } else {
-    btcDomInterpret.textContent = "🟢 Altseason — capital flowing into altcoins!";
-    btcDomInterpret.className = "interpret bullish";
-  }
-} else {
-  btcDomEl.textContent = "—";
-  btcDomInterpret.textContent = "Unable to fetch data.";
-  }
 
       // Gentle user message
       const cacheAge = cache.timestamp ? new Date(cache.timestamp).toLocaleTimeString() : 'unknown';
@@ -940,9 +871,15 @@ function updatePhaseLadder(awr, btcGap) {
   }
 
 // update UI helper
-function updateUI(btc, btcGap, sentimentResults) {
+async function updateUI(btc, btcGap, sentimentResults) {
+  const btcGapEl = document.getElementById('btcGap');
+  const altGapEl = document.getElementById('altGap');
+  const ratioEl = document.getElementById('ratio');
+  const dominanceEl = document.getElementById('dominance');
   const btcInterpretEl = document.getElementById('btcInterpret');
   const altInterpretEl = document.getElementById('altInterpret');
+  const btcDomEl = document.getElementById("btcDominance");
+  const btcDomInterpret = document.getElementById("btcDomInterpret");
 
   // ✅ Bitcoin
   if (!btc || btcGap == null || !Number.isFinite(btcGap)) {
@@ -958,8 +895,6 @@ function updateUI(btc, btcGap, sentimentResults) {
     else btcLabel = '🔴 Capitulation / Bearish Zone';
 
     btcInterpretEl.textContent = btcLabel;
-
-    // 🎨 Color code Bitcoin interpretation
     btcInterpretEl.className =
       'interpret ' + (btcGap <= 15 ? 'bullish' : btcGap <= 60 ? 'neutral' : 'bearish');
   }
@@ -979,26 +914,24 @@ function updateUI(btc, btcGap, sentimentResults) {
     else altLabel = '🔴 Capitulation (Extreme Fear / Bottom Forming)';
 
     altInterpretEl.textContent = altLabel;
-
-    // 🎨 Color code Altcoin interpretation
     altInterpretEl.className =
       'interpret ' + (avgAlt <= 50 ? 'neutral' : avgAlt <= 75 ? 'bearish' : 'bearish');
   }
 
-  // ✅ Other stats
+  // ✅ Altcoin Weakness Ratio
   ratioEl.textContent = !Number.isFinite(sentimentResults.ratio)
     ? '∞'
     : `${sentimentResults.ratio.toFixed(2)}×`;
 
   dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
 
-  // ✅ Sentiment
+  // ✅ Market Sentiment
   setSentimentUI(
     `${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`,
     sentimentResults.sentimentClass
   );
-  
-  // 🧭 Update market phase dynamically
+
+  // ✅ Market Phase + Ladder
   const phaseInfo = determineMarketPhase(
     btcGap,
     sentimentResults.avgAltGap,
@@ -1008,8 +941,35 @@ function updateUI(btc, btcGap, sentimentResults) {
   );
   updatePhaseDisplay(phaseInfo);
   updatePhaseLadder(sentimentResults.ratio, btcGap);
-}
 
+  // ✅ Bitcoin Dominance (integrated here)
+  try {
+    const btcDominance = await fetchBTCdominance();
+    if (btcDominance) {
+      btcDomEl.textContent = `${btcDominance.toFixed(2)}%`;
+
+      if (btcDominance > 55) {
+        btcDomInterpret.textContent = "🔵 Bitcoin-led phase — alts still lagging.";
+        btcDomInterpret.className = "interpret bearish";
+      } else if (btcDominance >= 40 && btcDominance <= 55) {
+        btcDomInterpret.textContent = "🟡 Mixed market — partial rotation ongoing.";
+        btcDomInterpret.className = "interpret neutral";
+      } else {
+        btcDomInterpret.textContent = "🟢 Altseason — capital flowing into altcoins!";
+        btcDomInterpret.className = "interpret bullish";
+      }
+    } else {
+      btcDomEl.textContent = "—";
+      btcDomInterpret.textContent = "Unable to fetch data.";
+    }
+  } catch (err) {
+    console.error("BTC Dominance fetch failed:", err);
+    btcDomEl.textContent = "—";
+    btcDomInterpret.textContent = "Error fetching data.";
+  }
+      }
+
+  
 // wire controls
 refreshNowBtn.addEventListener('click', ()=> { runAnalysis(true); });
 scopeSelect.addEventListener('change', ()=> runAnalysis(true));
