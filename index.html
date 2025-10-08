@@ -77,10 +77,10 @@ button,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,2
       <label>
         Refresh (sec):
         <select id="refreshSelect">
-          <option value="60" selected>60</option>
-          <option value="120">120</option>
-          <option value="300">300</option>
-        </select>
+  <option value="60">60</option>
+  <option value="120">120</option>
+  <option value="300" selected>300</option>
+</select>
       </label>
 
       <button id="refreshNow">Refresh Now</button>
@@ -188,7 +188,7 @@ button,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,2
 
 const COINGECKO = '/api/coins';
 const PER_PAGE = 250;            // max per page
-const DEFAULT_DELAY = 1500;      // ms between page calls
+const DEFAULT_DELAY = 5000;      // ms between page calls
 const CACHE_KEY = 'cg_sentiment_cache_v1';
 const CACHE_INFO_KEY = 'cg_sentiment_cache_info_v1';
 const DEFAULT_REFRESH_MS = 60000;
@@ -402,7 +402,7 @@ async function runAnalysis(forceFetch=false){
 
   // check cache
   const cache = loadCache();
-  const cacheValidMs = Math.max(30000, refreshSec * 1000 - 1000); // adaptive TTL
+  const cacheValidMs = 5 * 60 * 1000; // 5 minutes cache validity
   const cachedTs = cache.info && cache.info.ts ? cache.info.ts : 0;
   const cacheAge = Date.now() - cachedTs;
   if (!forceFetch && cache.data && cache.data.length >= displayN && cacheAge < cacheValidMs){
