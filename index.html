@@ -448,6 +448,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 function setProgress(text){ progressInfoEl.textContent = text; }
 function setError(msg){ errorMsgEl.style.display = msg ? 'block' : 'none'; errorMsgEl.textContent = msg || ''; }
 function setSentimentUI(text, cls){ sentimentEl.textContent = text; sentimentEl.className = 'sentiment ' + cls; }
+  function clearError() {
+  const el = document.getElementById('error');
+  if (el) el.textContent = '';
+  }
 
 // 🔒 Safe cache helpers with timestamp tracking
 function saveCache(data) {
