@@ -519,7 +519,6 @@ function updateUI(btc, btcGap, sentimentResults){
   ratioEl.textContent = !Number.isFinite(sentimentResults.ratio) ? '∞' : `${sentimentResults.ratio.toFixed(2)}×`;
   dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
   setSentimentUI(`${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`, sentimentResults.sentimentClass);
-}
 
   // 🧭 Update market phase dynamically
   const phaseInfo = determineMarketPhase(
@@ -530,6 +529,7 @@ function updateUI(btc, btcGap, sentimentResults){
     sentimentResults.lagCount
   );
   updatePhaseDisplay(phaseInfo);
+}
 
 // wire controls
 refreshNowBtn.addEventListener('click', ()=> { runAnalysis(true); });
