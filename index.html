@@ -377,140 +377,18 @@ function deriveSentiment(btcGap, altGaps) {
   };
 }
 
-function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
-  let phase = "Neutral";
-  let description = "";
-  let insight = "";
-
-  if (awr < 3 && btcGap < 15) {
-    phase = "🟢 Altseason / Expansion";
-    description = "Altcoins are outperforming Bitcoin. Strong risk-on momentum.";
-    insight = "📈 Historically marks the mid-bull run where altcoins explode higher.";
-  } 
-  else if (awr >= 3 && awr <= 8 && btcGap < 25) {
-    phase = "🟡 Transition / Caution";
-    description = "Bitcoin is still leading, but altcoins are regaining traction. Watch for rotation.";
-    insight = "⚖️ Often appears mid-cycle before either a correction or a renewed rally.";
-  } 
-  else if (awr > 8 && awr <= 15) {
-    phase = "🟠 Correction / Rotation";
-    description = "Liquidity is rotating back into Bitcoin or stablecoins. Market cautious.";
-    insight = "🔁 Common before major shakeouts or after temporary overextension.";
-  } 
-  else if (awr > 15 && btcGap < 10) {
-    phase = "🔴 Capitulation / Bottom";
-    description = "Altcoins are extremely weak vs Bitcoin. Historically near market bottoms.";
-    insight = "🪙 Historically, this phase often precedes recovery — smart money quietly accumulates strong altcoins.";
-  } 
-  else {
-    phase = "Neutral";
-    description = "Mixed sentiment — no clear leadership between BTC and altcoins.";
-    insight = "🧭 Watch closely for upcoming shifts in BTC dominance or altcoin strength.";
+  async function fetchBTCdominance() {
+  try {
+    const res = await fetch("/api/btc-dominance");
+    const data = await res.json();
+    const dominance = data.data.market_cap_percentage.btc;
+    return dominance;
+  } catch (err) {
+    console.error("Error fetching BTC dominance:", err);
+    return null;
   }
-
-  const dominance = strongCount > lagCount ? "Strong Coins Dominant" : "Lagging Coins Dominant";
-
-  return { phase, description, insight, dominance };
-}
-
-  function interpretAWR(awrValue) {
-  let phase = "";
-  let description = "";
-  let colorClass = "neutral";
-
-  if (awrValue <= 3) {
-    phase = "🟢 Full Altseason";
-    description = "Altcoins are outperforming Bitcoin — strong capital rotation underway.";
-    colorClass = "bullish";
-  } else if (awrValue > 3 && awrValue <= 8) {
-    phase = "🟡 Early Altseason";
-    description = "Altcoins starting to catch up — rotation phase beginning.";
-    colorClass = "neutral";
-  } else if (awrValue > 8 && awrValue <= 15) {
-    phase = "🟠 Bitcoin Dominance Phase";
-    description = "Bitcoin leading; altcoins lagging. Altseason not yet started.";
-    colorClass = "bearish";
-  } else {
-    phase = "🔴 Capitulation / Bottom Zone";
-    description = "Altcoins extremely weak vs Bitcoin — historically near bottoms.";
-    colorClass = "bearish";
   }
-
-  return { phase, description, colorClass };
-  }
-
-// helper to render top lists
-function renderTopTables(displayList) {
-  // 🧠 Exclude stablecoins, wrapped assets, staking derivatives, and LP tokens
-  const excludedWords = [
-    'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'busd', 'c1usd', 'usd1', 'susd', 'stable', 'peg', 'fiat',
-    'wrapped', 'staked', 'restaked', 'liquid staking', 'lbtc', 'reth', 'seth', 'oseth', 'rsETH', 'lp', 'liquidity provider',
-    'bond', 'derivative', 'index', 'yield'
-  ];
-
-  const valid = displayList.filter(c => {
-    const name = (c.name || '').toLowerCase();
-    const symbol = (c.symbol || '').toLowerCase();
-    const ath = Number(c.ath);
-    const price = Number(c.current_price);
-
-    // Skip excluded tokens
-    const isExcluded = excludedWords.some(w => name.includes(w) || symbol.includes(w));
-    if (isExcluded) return false;
-
-    // Only valid price and ATH
-    return ath > 0 && price > 0 && ath > price;
-  });
-
-  // 🧮 Compute drawdowns for valid coins
-  const enriched = valid.map(c => {
-    const price = Number(c.current_price);
-    const ath = Number(c.ath);
-    const gap = ((ath - price) / ath) * 100;
-    return {
-      name: c.name,
-      symbol: c.symbol.toUpperCase(),
-      price,
-      gap,
-      change24h: c.price_change_percentage_24h
-    };
-  });
-
-  // 🏆 Sort and pick top 10
-  const strongest = enriched.slice().sort((a, b) => a.gap - b.gap).slice(0, 10);
-  const lagging = enriched.slice().sort((a, b) => b.gap - a.gap).slice(0, 10);
   
-  // render strongest
-  topStrongestTbody.innerHTML = '';
-  if (strongest.length === 0) topStrongestTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#8c9db0">No data</td></tr>`;
-  else strongest.forEach((s,i)=>{
-    topStrongestTbody.insertAdjacentHTML('beforeend', `
-      <tr>
-        <td>${i+1}</td>
-        <td>${s.name}</td>
-        <td>${s.symbol}</td>
-        <td>$${s.price.toLocaleString()}</td>
-        <td>${s.gap.toFixed(2)}%</td>
-      </tr>
-    `);
-  });
-
-  // render lagging
-  topLaggingTbody.innerHTML = '';
-  if (lagging.length === 0) topLaggingTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#8c9db0">No data</td></tr>`;
-  else lagging.forEach((s,i)=>{
-    topLaggingTbody.insertAdjacentHTML('beforeend', `
-      <tr>
-        <td>${i+1}</td>
-        <td>${s.name}</td>
-        <td>${s.symbol}</td>
-        <td>$${s.price.toLocaleString()}</td>
-        <td>${s.gap.toFixed(2)}%</td>
-      </tr>
-    `);
-  });
-}
-
 // main orchestrator
 async function runAnalysis(forceFetch=false){
   setError('');
@@ -611,6 +489,68 @@ async function fetchAndUpdate(scope, displayN, background = false) {
   }
   }
 
+  function interpretAWR(awrValue) {
+  let phase = "";
+  let description = "";
+  let colorClass = "neutral";
+
+  if (awrValue <= 3) {
+    phase = "🟢 Full Altseason";
+    description = "Altcoins are outperforming Bitcoin — strong capital rotation underway.";
+    colorClass = "bullish";
+  } else if (awrValue > 3 && awrValue <= 8) {
+    phase = "🟡 Early Altseason";
+    description = "Altcoins starting to catch up — rotation phase beginning.";
+    colorClass = "neutral";
+  } else if (awrValue > 8 && awrValue <= 15) {
+    phase = "🟠 Bitcoin Dominance Phase";
+    description = "Bitcoin leading; altcoins lagging. Altseason not yet started.";
+    colorClass = "bearish";
+  } else {
+    phase = "🔴 Capitulation / Bottom Zone";
+    description = "Altcoins extremely weak vs Bitcoin — historically near bottoms.";
+    colorClass = "bearish";
+  }
+
+  return { phase, description, colorClass };
+  }
+
+  function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
+  let phase = "Neutral";
+  let description = "";
+  let insight = "";
+
+  if (awr < 3 && btcGap < 15) {
+    phase = "🟢 Altseason / Expansion";
+    description = "Altcoins are outperforming Bitcoin. Strong risk-on momentum.";
+    insight = "📈 Historically marks the mid-bull run where altcoins explode higher.";
+  } 
+  else if (awr >= 3 && awr <= 8 && btcGap < 25) {
+    phase = "🟡 Transition / Caution";
+    description = "Bitcoin is still leading, but altcoins are regaining traction. Watch for rotation.";
+    insight = "⚖️ Often appears mid-cycle before either a correction or a renewed rally.";
+  } 
+  else if (awr > 8 && awr <= 15) {
+    phase = "🟠 Correction / Rotation";
+    description = "Liquidity is rotating back into Bitcoin or stablecoins. Market cautious.";
+    insight = "🔁 Common before major shakeouts or after temporary overextension.";
+  } 
+  else if (awr > 15 && btcGap < 10) {
+    phase = "🔴 Capitulation / Bottom";
+    description = "Altcoins are extremely weak vs Bitcoin. Historically near market bottoms.";
+    insight = "🪙 Historically, this phase often precedes recovery — smart money quietly accumulates strong altcoins.";
+  } 
+  else {
+    phase = "Neutral";
+    description = "Mixed sentiment — no clear leadership between BTC and altcoins.";
+    insight = "🧭 Watch closely for upcoming shifts in BTC dominance or altcoin strength.";
+  }
+
+  const dominance = strongCount > lagCount ? "Strong Coins Dominant" : "Lagging Coins Dominant";
+
+  return { phase, description, insight, dominance };
+  }
+
   function updatePhaseDisplay({ phase, description, insight, dominance }) {
   const el = document.getElementById("phaseDisplay");
   if (!el) return;
@@ -654,17 +594,77 @@ function updatePhaseLadder(awr, btcGap) {
   bar.style.left = `${leftPercent}%`;
 }
 
-  async function fetchBTCdominance() {
-  try {
-    const res = await fetch("/api/btc-dominance");
-    const data = await res.json();
-    const dominance = data.data.market_cap_percentage.btc;
-    return dominance;
-  } catch (err) {
-    console.error("Error fetching BTC dominance:", err);
-    return null;
-  }
-  }
+  // helper to render top lists
+function renderTopTables(displayList) {
+  // 🧠 Exclude stablecoins, wrapped assets, staking derivatives, and LP tokens
+  const excludedWords = [
+    'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'busd', 'c1usd', 'usd1', 'susd', 'stable', 'peg', 'fiat',
+    'wrapped', 'staked', 'restaked', 'liquid staking', 'lbtc', 'reth', 'seth', 'oseth', 'rsETH', 'lp', 'liquidity provider',
+    'bond', 'derivative', 'index', 'yield'
+  ];
+
+  const valid = displayList.filter(c => {
+    const name = (c.name || '').toLowerCase();
+    const symbol = (c.symbol || '').toLowerCase();
+    const ath = Number(c.ath);
+    const price = Number(c.current_price);
+
+    // Skip excluded tokens
+    const isExcluded = excludedWords.some(w => name.includes(w) || symbol.includes(w));
+    if (isExcluded) return false;
+
+    // Only valid price and ATH
+    return ath > 0 && price > 0 && ath > price;
+  });
+
+  // 🧮 Compute drawdowns for valid coins
+  const enriched = valid.map(c => {
+    const price = Number(c.current_price);
+    const ath = Number(c.ath);
+    const gap = ((ath - price) / ath) * 100;
+    return {
+      name: c.name,
+      symbol: c.symbol.toUpperCase(),
+      price,
+      gap,
+      change24h: c.price_change_percentage_24h
+    };
+  });
+
+  // 🏆 Sort and pick top 10
+  const strongest = enriched.slice().sort((a, b) => a.gap - b.gap).slice(0, 10);
+  const lagging = enriched.slice().sort((a, b) => b.gap - a.gap).slice(0, 10);
+  
+  // render strongest
+  topStrongestTbody.innerHTML = '';
+  if (strongest.length === 0) topStrongestTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#8c9db0">No data</td></tr>`;
+  else strongest.forEach((s,i)=>{
+    topStrongestTbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${i+1}</td>
+        <td>${s.name}</td>
+        <td>${s.symbol}</td>
+        <td>$${s.price.toLocaleString()}</td>
+        <td>${s.gap.toFixed(2)}%</td>
+      </tr>
+    `);
+  });
+
+  // render lagging
+  topLaggingTbody.innerHTML = '';
+  if (lagging.length === 0) topLaggingTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#8c9db0">No data</td></tr>`;
+  else lagging.forEach((s,i)=>{
+    topLaggingTbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td>${i+1}</td>
+        <td>${s.name}</td>
+        <td>${s.symbol}</td>
+        <td>$${s.price.toLocaleString()}</td>
+        <td>${s.gap.toFixed(2)}%</td>
+      </tr>
+    `);
+  });
+}
 
 // update UI helper
 async function updateUI(btc, btcGap, sentimentResults) {
