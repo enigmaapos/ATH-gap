@@ -378,14 +378,19 @@ async function runAnalysis(forceFetch=false){
   // otherwise fetch live
   await fetchAndUpdate(scope, displayN, false);
 }
+// fetch and update with graceful fallback and cleaner messaging
+async function fetchAndUpdate(scope, displayN, background = false) {
+  setProgress('🔄 Connecting to CoinGecko...');
 
-// fetch and update with fallback
-async function fetchAndUpdate(scope, displayN, background=false){
-  setProgress('Connecting to CoinGecko...');
-  try{
+  try {
+    // Try live data fetch
     const coins = await fetchPages(scope, DEFAULT_DELAY);
     if (!coins || !coins.length) throw new Error('No coin data returned');
+
+    // Save to cache on success
     saveCache(coins);
+
+    // Compute sentiment and update UI
     const sentimentCoins = coins.slice(0, scope);
     const displayCoins = coins.slice(0, displayN);
     const { btc, btcGap, altGaps } = computeGaps(sentimentCoins);
@@ -393,27 +398,42 @@ async function fetchAndUpdate(scope, displayN, background=false){
 
     updateUI(btc, btcGap, sentimentResults);
     renderTopTables(displayCoins);
-    setProgress(`Analyzed ${coins.length} coins • Updated: ${new Date().toLocaleTimeString()}`);
-  }catch(err){
-    console.error('fetchAndUpdate error', err);
-    // try fallback to cache
+
+    // Success message
+    const now = new Date().toLocaleTimeString();
+    setProgress(`✅ Analyzed ${coins.length} coins • Updated: ${now}`);
+    clearError();
+
+  } catch (err) {
+    console.warn('⚠️ Live fetch failed:', err);
+
+    // Try cached fallback
     const cache = loadCache();
-    if (cache.data && cache.data.length){
-      setProgress('Fetch failed — using cached data. See console for details.');
+
+    if (cache.data && cache.data.length) {
       const coins = cache.data;
+
+      // Recompute sentiment using cached data
       const sentimentCoins = coins.slice(0, scope);
       const displayCoins = coins.slice(0, displayN);
       const { btc, btcGap, altGaps } = computeGaps(sentimentCoins);
       const sentimentResults = deriveSentiment(btcGap, altGaps);
+
       updateUI(btc, btcGap, sentimentResults);
       renderTopTables(displayCoins);
-      setError('Live fetch failed — using cached results. Check console for error.');
+
+      // Gentle user message
+      const cacheAge = cache.timestamp ? new Date(cache.timestamp).toLocaleTimeString() : 'unknown';
+      setProgress(`⚙️ Using cached snapshot (last updated: ${cacheAge}).`);
+      clearError(); // don’t display error text
     } else {
-      setError('Live fetch failed and no cached data available. Open console for details.');
-      setProgress('Error fetching data.');
+      // No cache available — show proper error
+      console.error('❌ No cache found. Cannot display data.');
+      setError('🚫 Live fetch failed and no cached data available.');
+      setProgress('Error: Unable to retrieve data.');
     }
   }
-}
+  }
 
 // update UI helper
 function updateUI(btc, btcGap, sentimentResults){
