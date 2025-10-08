@@ -638,17 +638,44 @@ function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
   
 
 // helper to render top lists
-function renderTopTables(displayList){
-  const valid = displayList.filter(c => c.ath != null && c.current_price != null && Number(c.ath) > Number(c.current_price));
-  const enriched = valid.map(c => {
-    const price = Number(c.current_price), ath = Number(c.ath);
-    const gap = ((ath - price) / ath) * 100;
-    return { name: c.name, symbol: c.symbol.toUpperCase(), price, gap, change24h: c.price_change_percentage_24h };
+function renderTopTables(displayList) {
+  // ✅ 1. Filter out stablecoins and wrapped assets
+  const excludedWords = [
+    'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'binance usd',
+    'busd', 'c1usd', 'usd1', 'susd', 'stable', 'wrapped', 'peg', 'fiat'
+  ];
+
+  const valid = displayList.filter(c => {
+    const name = (c.name || '').toLowerCase();
+    const symbol = (c.symbol || '').toLowerCase();
+    const ath = Number(c.ath);
+    const price = Number(c.current_price);
+
+    // Exclude if name/symbol contains stablecoin keywords
+    const isExcluded = excludedWords.some(w => name.includes(w) || symbol.includes(w));
+    if (isExcluded) return false;
+
+    // Valid price + ATH logic
+    return ath > 0 && price > 0 && ath > price;
   });
 
-  const strongest = enriched.slice().sort((a,b)=>a.gap - b.gap).slice(0,10);
-  const lagging = enriched.slice().sort((a,b)=>b.gap - a.gap).slice(0,10);
+  // ✅ 2. Compute gaps for valid coins
+  const enriched = valid.map(c => {
+    const price = Number(c.current_price);
+    const ath = Number(c.ath);
+    const gap = ((ath - price) / ath) * 100;
+    return {
+      name: c.name,
+      symbol: c.symbol.toUpperCase(),
+      price,
+      gap,
+      change24h: c.price_change_percentage_24h
+    };
+  });
 
+  // ✅ 3. Sort by strongest and lagging
+  const strongest = enriched.slice().sort((a, b) => a.gap - b.gap).slice(0, 10);
+  const lagging = enriched.slice().sort((a, b) => b.gap - a.gap).slice(0, 10);
   // render strongest
   topStrongestTbody.innerHTML = '';
   if (strongest.length === 0) topStrongestTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#8c9db0">No data</td></tr>`;
