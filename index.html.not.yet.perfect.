@@ -151,26 +151,26 @@ function setProgress(text){ progressInfoEl.textContent = text; }
 function setError(msg){ errorMsgEl.style.display = msg ? 'block' : 'none'; errorMsgEl.textContent = msg || ''; }
 function setSentimentUI(text, cls){ sentimentEl.textContent = text; sentimentEl.className = 'sentiment ' + cls; }
 
-// cache helpers
-function loadCache(){
-  try{
-    const raw = localStorage.getItem(CACHE_KEY);
-    const infoRaw = localStorage.getItem(CACHE_INFO_KEY);
-    return {
-      data: raw ? JSON.parse(raw) : null,
-      info: infoRaw ? JSON.parse(infoRaw) : null
+// 🔒 Safe cache helpers with timestamp tracking
+function saveCache(data) {
+  try {
+    const cache = {
+      data,
+      timestamp: Date.now(), // record the exact cache time
     };
-  }catch(e){
-    console.warn('cache load error', e);
-    return { data:null, info:null };
+    localStorage.setItem('coinCache', JSON.stringify(cache));
+  } catch (err) {
+    console.warn('cache save error', err);
   }
 }
-function saveCache(data){
-  try{
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    localStorage.setItem(CACHE_INFO_KEY, JSON.stringify({ ts: Date.now(), count: data.length }));
-  }catch(e){
-    console.warn('cache save error', e);
+
+function loadCache() {
+  try {
+    const cache = JSON.parse(localStorage.getItem('coinCache') || '{}');
+    return cache;
+  } catch (err) {
+    console.error('Error reading cache:', err);
+    return { data: [], timestamp: 0 };
   }
 }
 
@@ -249,39 +249,50 @@ function computeGaps(coins){
   return { btc, btcGap, altGaps };
 }
 
-// dominance + sentiment logic
-function deriveSentiment(btcGap, altGaps){
-  // guard
+// ⚖️ Weighted & integrated sentiment computation
+function deriveSentiment(btcGap, altGaps) {
   const safeBtcGap = (btcGap == null || btcGap <= 0) ? 0 : btcGap;
-  const avgAltGap = altGaps.length ? (altGaps.reduce((s,x)=>s + x.gap, 0) / altGaps.length) : null;
+  const avgAltGap = altGaps.length
+    ? (altGaps.reduce((s, x) => s + x.gap, 0) / altGaps.length)
+    : null;
 
-  // dominance thresholds (configurable)
-  const STRONG_THRESHOLD = 70;   // gap < 70% -> considered "strong"
-  const LAGGING_THRESHOLD = 90;  // gap > 90% -> considered "lagging"
+  // thresholds
+  const STRONG_THRESHOLD = 70;  // <70% drawdown = strong
+  const LAGGING_THRESHOLD = 90; // >90% drawdown = lagging
 
   const strongCount = altGaps.filter(x => x.gap < STRONG_THRESHOLD).length;
   const lagCount = altGaps.filter(x => x.gap > LAGGING_THRESHOLD).length;
+  const total = altGaps.length || 1;
 
+  // dominance ratio
+  const dominanceRatio = strongCount / total;
   let dominance = 'Balanced';
-  if (strongCount > lagCount) dominance = 'Strong Coins Dominant';
-  else if (lagCount > strongCount) dominance = 'Lagging Coins Dominant';
+  if (dominanceRatio > 0.55) dominance = 'Strong Coins Dominant';
+  else if (dominanceRatio < 0.45) dominance = 'Lagging Coins Dominant';
 
-  // compute weakness ratio (protect division by zero)
-  let ratio;
-  if (!avgAltGap || safeBtcGap === 0) {
-    ratio = Number.POSITIVE_INFINITY; // treat as very large
+  // weakness ratio
+  let ratio = (!avgAltGap || safeBtcGap === 0)
+    ? Number.POSITIVE_INFINITY
+    : avgAltGap / safeBtcGap;
+
+  // 🧮 Weighted integrated sentiment computation
+  const btcScore = 1 - Math.min(safeBtcGap / 100, 1);
+  const altScore = 1 - Math.min((avgAltGap || 100) / 100, 1);
+  const dominanceScore = dominanceRatio;
+
+  const sentimentScore =
+    btcScore * 0.35 +
+    altScore * 0.25 +
+    dominanceScore * 0.40;
+
+  // 🧭 Classification logic
+  let sentiment, sentimentClass, sentimentEmoji;
+  if (sentimentScore >= 0.70) {
+    sentiment = 'Bullish'; sentimentClass = 'bullish'; sentimentEmoji = '🚀';
+  } else if (sentimentScore >= 0.45) {
+    sentiment = 'Neutral'; sentimentClass = 'neutral'; sentimentEmoji = '😐';
   } else {
-    ratio = avgAltGap / safeBtcGap;
-  }
-
-  // sentiment blending: combine ratio and dominance
-  let sentiment = 'Neutral', sentimentClass = 'neutral';
-  if ((ratio <= 2.5) || dominance.includes('Strong')) {
-    sentiment = 'Bullish'; sentimentClass = 'bullish';
-  } else if ((ratio > 2.5 && ratio <= 6) && dominance === 'Balanced') {
-    sentiment = 'Neutral'; sentimentClass = 'neutral';
-  } else if ((ratio > 6) || dominance.includes('Lagging')) {
-    sentiment = 'Bearish'; sentimentClass = 'bearish';
+    sentiment = 'Bearish'; sentimentClass = 'bearish'; sentimentEmoji = '🩸';
   }
 
   return {
@@ -291,7 +302,9 @@ function deriveSentiment(btcGap, altGaps){
     strongCount,
     lagCount,
     sentiment,
-    sentimentClass
+    sentimentClass,
+    sentimentEmoji,
+    sentimentScore: sentimentScore.toFixed(3)
   };
 }
 
@@ -451,7 +464,7 @@ function updateUI(btc, btcGap, sentimentResults){
 
   ratioEl.textContent = !Number.isFinite(sentimentResults.ratio) ? '∞' : `${sentimentResults.ratio.toFixed(2)}×`;
   dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
-  setSentimentUI(`📈 Market Sentiment: ${sentimentResults.sentiment}`, sentimentResults.sentimentClass);
+  setSentimentUI(`${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`, sentimentResults.sentimentClass);
 }
 
 // wire controls
