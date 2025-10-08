@@ -639,10 +639,11 @@ function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
 
 // helper to render top lists
 function renderTopTables(displayList) {
-  // ✅ 1. Filter out stablecoins and wrapped assets
+  // 🧠 Exclude stablecoins, wrapped assets, staking derivatives, and LP tokens
   const excludedWords = [
-    'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'binance usd',
-    'busd', 'c1usd', 'usd1', 'susd', 'stable', 'wrapped', 'peg', 'fiat'
+    'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'busd', 'c1usd', 'usd1', 'susd', 'stable', 'peg', 'fiat',
+    'wrapped', 'staked', 'restaked', 'liquid staking', 'lbtc', 'reth', 'seth', 'oseth', 'rsETH', 'lp', 'liquidity provider',
+    'bond', 'derivative', 'index', 'yield'
   ];
 
   const valid = displayList.filter(c => {
@@ -651,15 +652,15 @@ function renderTopTables(displayList) {
     const ath = Number(c.ath);
     const price = Number(c.current_price);
 
-    // Exclude if name/symbol contains stablecoin keywords
+    // Skip excluded tokens
     const isExcluded = excludedWords.some(w => name.includes(w) || symbol.includes(w));
     if (isExcluded) return false;
 
-    // Valid price + ATH logic
+    // Only valid price and ATH
     return ath > 0 && price > 0 && ath > price;
   });
 
-  // ✅ 2. Compute gaps for valid coins
+  // 🧮 Compute drawdowns for valid coins
   const enriched = valid.map(c => {
     const price = Number(c.current_price);
     const ath = Number(c.ath);
@@ -673,9 +674,10 @@ function renderTopTables(displayList) {
     };
   });
 
-  // ✅ 3. Sort by strongest and lagging
+  // 🏆 Sort and pick top 10
   const strongest = enriched.slice().sort((a, b) => a.gap - b.gap).slice(0, 10);
   const lagging = enriched.slice().sort((a, b) => b.gap - a.gap).slice(0, 10);
+  
   // render strongest
   topStrongestTbody.innerHTML = '';
   if (strongest.length === 0) topStrongestTbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#8c9db0">No data</td></tr>`;
