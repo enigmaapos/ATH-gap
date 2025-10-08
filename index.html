@@ -14,6 +14,56 @@
     .stats{ display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap }
     .stat-item{ flex:1; min-width:180px }
     .stat-item strong{ display:block; color:#cfeeff; margin-bottom:6px }
+    .stat-item {
+  flex: 1;
+  min-width: 200px;
+  text-align: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  background: rgba(0, 255, 255, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.1);
+}
+
+.value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #cfeeff;
+  margin-top: 4px;
+}
+
+.interpret {
+  font-size: 13px;
+  color: #9aa6b2;
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+.small-note {
+  font-size: 12px;
+  opacity: 0.7;
+  color: #8aa6c9;
+}
+
+.highlight strong {
+  color: #74d0f1;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+    .interpret.bullish {
+  color: #7ef1a6;
+}
+.interpret.neutral {
+  color: #fff29a;
+}
+.interpret.bearish {
+  color: #ff9b9b;
+}
     .interpret {
   font-size: 13px;
   color: #9aa6b2;
@@ -142,24 +192,25 @@
   
     <hr class="my-3 border-slate-700" />
 
-    <div class="stat-item">
-  <strong>Bitcoin Drawdown</strong>
-  <div id="btcGap">Loading…</div>
-  <div id="btcInterpret" class="interpret"></div>
-</div>
+    <div class="stats">
+  <div class="stat-item highlight">
+    <strong>Bitcoin Drawdown</strong>
+    <div id="btcGap" class="value">Loading…</div>
+    <div id="btcInterpret" class="interpret">—</div>
+  </div>
 
-<div class="stat-item">
-  <strong>Average Altcoin Drawdown</strong>
-  <div id="altGap">Loading…</div>
-  <div id="altInterpret" class="interpret"></div>
-</div>
+  <div class="stat-item highlight">
+    <strong>Average Altcoin Drawdown</strong>
+    <div id="altGap" class="value">Loading…</div>
+    <div id="altInterpret" class="interpret">—</div>
+  </div>
 
-      
-        <div class="stat-item">
-          <strong>Altcoins Weakness Ratio</strong>
-          <div id="ratio">Loading…</div>
-        </div>
-      </div>
+  <div class="stat-item highlight">
+    <strong>Altcoins Weakness Ratio</strong>
+    <div id="ratio" class="value">Loading…</div>
+    <div class="interpret small-note">Lower = Altseason Potential</div>
+  </div>
+    </div>
       
 
         
@@ -634,43 +685,64 @@ function updatePhaseLadder(awr, btcGap) {
 }
 
 // update UI helper
-function updateUI(btc, btcGap, sentimentResults){
-  // 🪙 Bitcoin drawdown interpretation
-if (!btc || btcGap == null || !Number.isFinite(btcGap)) {
-  btcGapEl.textContent = 'N/A';
-  document.getElementById('btcInterpret').textContent = '';
-} else {
-  btcGapEl.textContent = `${btcGap.toFixed(2)}%`;
-  let btcLabel = '';
-  if (btcGap <= 5) btcLabel = '🔥 Near ATH / Euphoric Zone';
-  else if (btcGap <= 15) btcLabel = '🟢 Minor Correction / Strong';
-  else if (btcGap <= 35) btcLabel = '🟡 Mid Correction / Neutral';
-  else if (btcGap <= 60) btcLabel = '🟠 Deep Correction / Watch Support';
-  else btcLabel = '🔴 Capitulation / Bearish Zone';
-  document.getElementById('btcInterpret').textContent = btcLabel;
-}
+function updateUI(btc, btcGap, sentimentResults) {
+  const btcInterpretEl = document.getElementById('btcInterpret');
+  const altInterpretEl = document.getElementById('altInterpret');
 
-// 💠 Altcoin drawdown interpretation
-if (!sentimentResults.avgAltGap || !Number.isFinite(sentimentResults.avgAltGap)) {
-  altGapEl.textContent = 'N/A';
-  document.getElementById('altInterpret').textContent = '';
-} else {
-  const avgAlt = sentimentResults.avgAltGap;
-  altGapEl.textContent = `${avgAlt.toFixed(2)}%`;
+  // ✅ Bitcoin
+  if (!btc || btcGap == null || !Number.isFinite(btcGap)) {
+    btcGapEl.textContent = 'N/A';
+    btcInterpretEl.textContent = '';
+  } else {
+    btcGapEl.textContent = `${btcGap.toFixed(2)}%`;
+    let btcLabel = '';
+    if (btcGap <= 5) btcLabel = '🔥 Near ATH / Euphoric Zone';
+    else if (btcGap <= 15) btcLabel = '🟢 Minor Correction / Strong';
+    else if (btcGap <= 35) btcLabel = '🟡 Mid Correction / Neutral';
+    else if (btcGap <= 60) btcLabel = '🟠 Deep Correction / Watch Support';
+    else btcLabel = '🔴 Capitulation / Bearish Zone';
 
-  let altLabel = '';
-  if (avgAlt <= 25) altLabel = '🔥 Near Bull-Run Peaks (Euphoria)';
-  else if (avgAlt <= 50) altLabel = '🟢 Healthy Correction (Neutral)';
-  else if (avgAlt <= 75) altLabel = '🟠 Deep Correction (Fear / Opportunity)';
-  else altLabel = '🔴 Capitulation (Extreme Fear / Bottom Forming)';
+    btcInterpretEl.textContent = btcLabel;
 
-  document.getElementById('altInterpret').textContent = altLabel;
+    // 🎨 Color code Bitcoin interpretation
+    btcInterpretEl.className =
+      'interpret ' + (btcGap <= 15 ? 'bullish' : btcGap <= 60 ? 'neutral' : 'bearish');
   }
 
-  ratioEl.textContent = !Number.isFinite(sentimentResults.ratio) ? '∞' : `${sentimentResults.ratio.toFixed(2)}×`;
-  dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
-  setSentimentUI(`${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`, sentimentResults.sentimentClass);
+  // ✅ Altcoins
+  if (!sentimentResults.avgAltGap || !Number.isFinite(sentimentResults.avgAltGap)) {
+    altGapEl.textContent = 'N/A';
+    altInterpretEl.textContent = '';
+  } else {
+    const avgAlt = sentimentResults.avgAltGap;
+    altGapEl.textContent = `${avgAlt.toFixed(2)}%`;
 
+    let altLabel = '';
+    if (avgAlt <= 25) altLabel = '🔥 Near Bull-Run Peaks (Euphoria)';
+    else if (avgAlt <= 50) altLabel = '🟢 Healthy Correction (Neutral)';
+    else if (avgAlt <= 75) altLabel = '🟠 Deep Correction (Fear / Opportunity)';
+    else altLabel = '🔴 Capitulation (Extreme Fear / Bottom Forming)';
+
+    altInterpretEl.textContent = altLabel;
+
+    // 🎨 Color code Altcoin interpretation
+    altInterpretEl.className =
+      'interpret ' + (avgAlt <= 50 ? 'neutral' : avgAlt <= 75 ? 'bearish' : 'bearish');
+  }
+
+  // ✅ Other stats
+  ratioEl.textContent = !Number.isFinite(sentimentResults.ratio)
+    ? '∞'
+    : `${sentimentResults.ratio.toFixed(2)}×`;
+
+  dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
+
+  // ✅ Sentiment
+  setSentimentUI(
+    `${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`,
+    sentimentResults.sentimentClass
+  );
+  
   // 🧭 Update market phase dynamically
   const phaseInfo = determineMarketPhase(
     btcGap,
