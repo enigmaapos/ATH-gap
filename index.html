@@ -598,10 +598,21 @@ function updatePhaseLadder(awr, btcGap) {
 function renderTopTables(displayList) {
   // 🧠 Exclude stablecoins, wrapped assets, staking derivatives, and LP tokens
   const excludedWords = [
-    'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'busd', 'c1usd', 'usd1', 'susd', 'stable', 'peg', 'fiat',
-    'wrapped', 'staked', 'restaked', 'liquid staking', 'lbtc', 'reth', 'seth', 'oseth', 'rsETH', 'lp', 'liquidity provider',
-    'bond', 'derivative', 'index', 'yield'
-  ];
+  // 🪙 Stablecoins & pegged assets
+  'usd', 'usdt', 'usdc', 'usde', 'dai', 'tether', 'busd', 'c1usd', 'usd1', 'susd',
+  'stable', 'peg', 'fiat',
+
+  // 🧱 Wrapped / bridged / staking derivatives
+  'wrapped', 'bridged', 'bridge', 'btc.b', 'wbtc', 'tbtc', 'solvbtc',
+  'staked', 'restaked', 'liquid staking', 'lbtc', 'reth', 'seth', 'oseth', 'rseth',
+  'lp', 'liquidity provider',
+
+  // 💼 Synthetic, bond, or derivative assets
+  'bond', 'derivative', 'index', 'yield', 'heloc', 'synthetic', 'tokenized', 'rwA',
+
+  // ⚠️ Extra noisy or mirrored assets
+  'mirror', 'brc', 'sb', 'cbtc', 'abtc', 'mbtc', 'fbnb', 'feth', 'hbtc'
+];
 
   const valid = displayList.filter(c => {
     const name = (c.name || '').toLowerCase();
