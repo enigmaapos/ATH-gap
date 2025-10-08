@@ -537,13 +537,29 @@ async function fetchAndUpdate(scope, displayN, background = false) {
   function updatePhaseDisplay({ phase, description, insight, dominance }) {
   const el = document.getElementById("phaseDisplay");
   if (!el) return;
+
+  // 🧭 decide background color by phase
+  let cls = "";
+  if (phase.includes("Altseason")) cls = "phase-altseason";
+  else if (phase.includes("Transition")) cls = "phase-transition";
+  else if (phase.includes("Correction")) cls = "phase-correction";
+  else if (phase.includes("Capitulation")) cls = "phase-capitulation";
+  else cls = "";
+
+  // 🪄 animate fade + color update
+  el.className = cls;
+  el.style.opacity = 0;
   el.innerHTML = `
     <div class="text-lg font-bold mt-2">${phase}</div>
     <div class="text-sm opacity-80">${description}</div>
     <div class="text-xs opacity-60 mt-1">⚖️ ${dominance}</div>
     <div class="text-xs mt-2 italic opacity-70">${insight}</div>
   `;
-  }
+  setTimeout(() => {
+    el.style.transition = "opacity 400ms ease";
+    el.style.opacity = 1;
+  }, 20);
+}
 
   // 🪜 Update ladder position based on ratio and BTC drawdown
 function updatePhaseLadder(awr, btcGap) {
