@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>📊 Crypto Market Sentiment Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: #0b0b0b;
+      color: #e2e8f0;
+      font-family: "Inter", sans-serif;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    h1 { color: #facc15; }
+    .bullish { color: #22c55e; }
+    .bearish { color: #ef4444; }
+    .neutral { color: #fbbf24; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #333; padding: 6px; text-align: left; }
+    tr:hover { background: rgba(255,255,255,0.05); }
+    .status { margin: 12px 0; font-size: 14px; color: #94a3b8; }
+    button {
+      background: #f59e0b;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    button:hover { background: #fbbf24; }
+  </style>
+</head>
+<body>
+  <h1>📊 Crypto Market Sentiment Analyzer — Weighted & Cached</h1>
+
+  <div class="status" id="status">Initializing...</div>
+  <div id="sentiment" class="status"></div>
+  <div id="summary" class="status"></div>
+
+  <button onclick="refreshNow()">🔄 Refresh Now</button>
+
+  <h2>📈 Top 10 Strongest (closest to ATH)</h2>
+  <table id="strongTable">
+    <thead><tr><th>#</th><th>Coin</th><th>Symbol</th><th>Price</th><th>Drawdown</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>📉 Top 10 Lagging (farthest from ATH)</h2>
+  <table id="lagTable">
+    <thead><tr><th>#</th><th>Coin</th><th>Symbol</th><th>Price</th><th>Drawdown</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+// 🕒 Cache helpers with timestamp
+function saveCache(data) {
+  try {
+    const cache = {
+      data,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem('coinCache', JSON.stringify(cache));
+  } catch (err) {
+    console.warn('Cache save error', err);
+  }
+}
+
+function loadCache() {
+  try {
+    const cache = JSON.parse(localStorage.getItem('coinCache') || '{}');
+    return cache;
+  } catch (err) {
+    console.error('Error reading cache:', err);
+    return { data: [], timestamp: 0 };
+  }
+}
+
+// 📊 Fetch from CoinGecko
+async function fetchPages(limit = 250, delay = 1500) {
+  const all = [];
+  const pages = Math.ceil(limit / 250);
+  for (let i = 1; i <= pages; i++) {
+    const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=${i}&sparkline=false`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    all.push(...data);
+    await new Promise(res => setTimeout(res, delay));
+  }
+  return all;
+}
+
+// 🧮 Compute drawdowns
+function computeGaps(coins) {
+  const btc = coins.find(c => c.symbol.toLowerCase() === 'btc');
+  const btcGap = btc ? (100 - ((btc.current_price / btc.ath) * 100)) : null;
+
+  const altGaps = coins
+    .filter(c => c.symbol.toLowerCase() !== 'btc')
+    .map(c => ({
+      id: c.id,
+      symbol: c.symbol.toUpperCase(),
+      name: c.name,
+      price: c.current_price,
+      gap: 100 - ((c.current_price / c.ath) * 100),
+    }))
+    .sort((a, b) => a.gap - b.gap);
+
+  return { btc, btcGap, altGaps };
+}
+
+// ⚖️ Weighted & integrated sentiment computation
+function deriveSentiment(btcGap, altGaps) {
+  const safeBtcGap = (btcGap == null || btcGap <= 0) ? 0 : btcGap;
+  const avgAltGap = altGaps.length
+    ? (altGaps.reduce((s, x) => s + x.gap, 0) / altGaps.length)
+    : null;
+
+  const STRONG_THRESHOLD = 70;
+  const LAGGING_THRESHOLD = 90;
+
+  const strongCount = altGaps.filter(x => x.gap < STRONG_THRESHOLD).length;
+  const lagCount = altGaps.filter(x => x.gap > LAGGING_THRESHOLD).length;
+  const total = altGaps.length || 1;
+
+  const dominanceRatio = strongCount / total;
+  let dominance = 'Balanced';
+  if (dominanceRatio > 0.55) dominance = 'Strong Coins Dominant';
+  else if (dominanceRatio < 0.45) dominance = 'Lagging Coins Dominant';
+
+  const ratio = (!avgAltGap || safeBtcGap === 0)
+    ? Number.POSITIVE_INFINITY
+    : avgAltGap / safeBtcGap;
+
+  const btcScore = 1 - Math.min(safeBtcGap / 100, 1);
+  const altScore = 1 - Math.min((avgAltGap || 100) / 100, 1);
+  const dominanceScore = dominanceRatio;
+
+  const sentimentScore =
+    btcScore * 0.35 +
+    altScore * 0.25 +
+    dominanceScore * 0.40;
+
+  let sentiment, sentimentClass, sentimentEmoji;
+  if (sentimentScore >= 0.70) {
+    sentiment = 'Bullish'; sentimentClass = 'bullish'; sentimentEmoji = '🚀';
+  } else if (sentimentScore >= 0.45) {
+    sentiment = 'Neutral'; sentimentClass = 'neutral'; sentimentEmoji = '😐';
+  } else {
+    sentiment = 'Bearish'; sentimentClass = 'bearish'; sentimentEmoji = '🩸';
+  }
+
+  return {
+    avgAltGap,
+    ratio,
+    dominance,
+    strongCount,
+    lagCount,
+    sentiment,
+    sentimentClass,
+    sentimentEmoji,
+    sentimentScore: sentimentScore.toFixed(3)
+  };
+}
+
+// 🧠 UI updates
+function setStatus(msg) { document.getElementById('status').textContent = msg; }
+function setSentimentUI(msg, cls) {
+  const el = document.getElementById('sentiment');
+  el.textContent = msg;
+  el.className = cls;
+}
+function renderTables(altGaps) {
+  const strong = altGaps.slice(0, 10);
+  const lag = altGaps.slice(-10).reverse();
+
+  const sbody = document.querySelector('#strongTable tbody');
+  const lbody = document.querySelector('#lagTable tbody');
+  sbody.innerHTML = strong.map((c, i) =>
+    `<tr><td>${i + 1}</td><td>${c.name}</td><td>${c.symbol}</td><td>$${c.price}</td><td>${c.gap.toFixed(2)}%</td></tr>`
+  ).join('');
+  lbody.innerHTML = lag.map((c, i) =>
+    `<tr><td>${i + 1}</td><td>${c.name}</td><td>${c.symbol}</td><td>$${c.price}</td><td>${c.gap.toFixed(2)}%</td></tr>`
+  ).join('');
+}
+
+// 🚀 Core fetch + analysis
+async function fetchAndAnalyze(limit = 250) {
+  setStatus('Connecting to CoinGecko...');
+  try {
+    const coins = await fetchPages(limit);
+    saveCache(coins);
+    const { btc, btcGap, altGaps } = computeGaps(coins);
+    const sentiment = deriveSentiment(btcGap, altGaps);
+
+    const cache = loadCache();
+    const cacheTime = cache.timestamp
+      ? new Date(cache.timestamp).toLocaleString()
+      : 'unknown';
+
+    setStatus(`✅ Live data fetched • Cached: ${cacheTime}`);
+    setSentimentUI(`${sentiment.sentimentEmoji} Market Sentiment: ${sentiment.sentiment} (${sentiment.sentimentScore})`, sentiment.sentimentClass);
+
+    document.getElementById('summary').innerHTML = `
+      Bitcoin Drawdown: <b>${btcGap.toFixed(2)}%</b><br>
+      Average Altcoin Drawdown: <b>${sentiment.avgAltGap.toFixed(2)}%</b><br>
+      Altcoins Weakness Ratio: <b>${sentiment.ratio.toFixed(2)}×</b><br>
+      Dominant Group: <b>${sentiment.dominance}</b> 
+      (Strong: ${sentiment.strongCount}, Lag: ${sentiment.lagCount})
+    `;
+
+    renderTables(altGaps);
+  } catch (err) {
+    console.warn('Fetch failed, using cache', err);
+    const cache = loadCache();
+    if (cache.data && cache.data.length) {
+      const { btc, btcGap, altGaps } = computeGaps(cache.data);
+      const sentiment = deriveSentiment(btcGap, altGaps);
+      const cacheTime = cache.timestamp
+        ? new Date(cache.timestamp).toLocaleString()
+        : 'unknown';
+
+      setStatus(`⚙️ Using cached snapshot (last updated: ${cacheTime}).`);
+      setSentimentUI(`${sentiment.sentimentEmoji} Market Sentiment: ${sentiment.sentiment} (${sentiment.sentimentScore})`, sentiment.sentimentClass);
+
+      document.getElementById('summary').innerHTML = `
+        Bitcoin Drawdown: <b>${btcGap.toFixed(2)}%</b><br>
+        Average Altcoin Drawdown: <b>${sentiment.avgAltGap.toFixed(2)}%</b><br>
+        Altcoins Weakness Ratio: <b>${sentiment.ratio.toFixed(2)}×</b><br>
+        Dominant Group: <b>${sentiment.dominance}</b> 
+        (Strong: ${sentiment.strongCount}, Lag: ${sentiment.lagCount})
+      `;
+      renderTables(altGaps);
+    } else {
+      setStatus('❌ No cache available.');
+      setSentimentUI('Fetch failed — no cached data available.', 'bearish');
+    }
+  }
+}
+
+// 🔁 Manual refresh
+function refreshNow() {
+  fetchAndAnalyze(500); // you can change limit to 1000 if you want
+}
+
+// ▶️ Run on load
+fetchAndAnalyze(500);
+</script>
+</body>
+</html>
