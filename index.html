@@ -14,6 +14,12 @@
     .stats{ display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap }
     .stat-item{ flex:1; min-width:180px }
     .stat-item strong{ display:block; color:#cfeeff; margin-bottom:6px }
+    .interpret {
+  font-size: 13px;
+  color: #9aa6b2;
+  margin-top: 3px;
+  opacity: 0.9;
+    }
     .sentiment{ text-align:center; padding:10px; border-radius:8px; font-weight:700; margin-top:10px }
     .bullish{ background:#033; color:#7ef1a6 }
     .neutral{ background:#333300; color:#fff29a }
@@ -136,17 +142,17 @@
   
     <hr class="my-3 border-slate-700" />
 
-    <div id="mainCard" class="card">
-      <div class="stats">
-        <div class="stat-item">
-          <strong>Bitcoin Drawdown</strong>
-          <div id="btcGap">Loading…</div>
-        </div>
+    <div class="stat-item">
+  <strong>Bitcoin Drawdown</strong>
+  <div id="btcGap">Loading…</div>
+  <div id="btcInterpret" class="interpret"></div>
+</div>
 
-        <div class="stat-item">
-          <strong>Average Altcoin Drawdown</strong>
-          <div id="altGap">Loading…</div>
-        </div>
+<div class="stat-item">
+  <strong>Average Altcoin Drawdown</strong>
+  <div id="altGap">Loading…</div>
+  <div id="altInterpret" class="interpret"></div>
+</div>
 
       
         <div class="stat-item">
@@ -629,16 +635,36 @@ function updatePhaseLadder(awr, btcGap) {
 
 // update UI helper
 function updateUI(btc, btcGap, sentimentResults){
-  if (!btc || btcGap == null || !Number.isFinite(btcGap)){
-    btcGapEl.textContent = 'N/A';
-  } else {
-    btcGapEl.textContent = `${btcGap.toFixed(2)}%`;
-  }
+  // 🪙 Bitcoin drawdown interpretation
+if (!btc || btcGap == null || !Number.isFinite(btcGap)) {
+  btcGapEl.textContent = 'N/A';
+  document.getElementById('btcInterpret').textContent = '';
+} else {
+  btcGapEl.textContent = `${btcGap.toFixed(2)}%`;
+  let btcLabel = '';
+  if (btcGap <= 5) btcLabel = '🔥 Near ATH / Euphoric Zone';
+  else if (btcGap <= 15) btcLabel = '🟢 Minor Correction / Strong';
+  else if (btcGap <= 35) btcLabel = '🟡 Mid Correction / Neutral';
+  else if (btcGap <= 60) btcLabel = '🟠 Deep Correction / Watch Support';
+  else btcLabel = '🔴 Capitulation / Bearish Zone';
+  document.getElementById('btcInterpret').textContent = btcLabel;
+}
 
-  if (!sentimentResults.avgAltGap || !Number.isFinite(sentimentResults.avgAltGap)){
-    altGapEl.textContent = 'N/A';
-  } else {
-    altGapEl.textContent = `${sentimentResults.avgAltGap.toFixed(2)}%`;
+// 💠 Altcoin drawdown interpretation
+if (!sentimentResults.avgAltGap || !Number.isFinite(sentimentResults.avgAltGap)) {
+  altGapEl.textContent = 'N/A';
+  document.getElementById('altInterpret').textContent = '';
+} else {
+  const avgAlt = sentimentResults.avgAltGap;
+  altGapEl.textContent = `${avgAlt.toFixed(2)}%`;
+
+  let altLabel = '';
+  if (avgAlt <= 25) altLabel = '🔥 Near Bull-Run Peaks (Euphoria)';
+  else if (avgAlt <= 50) altLabel = '🟢 Healthy Correction (Neutral)';
+  else if (avgAlt <= 75) altLabel = '🟠 Deep Correction (Fear / Opportunity)';
+  else altLabel = '🔴 Capitulation (Extreme Fear / Bottom Forming)';
+
+  document.getElementById('altInterpret').textContent = altLabel;
   }
 
   ratioEl.textContent = !Number.isFinite(sentimentResults.ratio) ? '∞' : `${sentimentResults.ratio.toFixed(2)}×`;
