@@ -6,15 +6,48 @@
   <link rel="icon" type="image/png" href="assets/logo.png">
   <title>Crypto Market Sentiment Analyzer — Robust</title>
   <style>
-    body { font-family: system-ui, sans-serif; background:#0b0b0b; color:#e6eef6; margin:0; padding:20px; }
-    .wrap{max-width:980px;margin:0 auto}
-    h1 { color:#00bcd4; text-align:center; margin-bottom:6px; }
-    .subtitle{ text-align:center;color:#9aa6b2;margin-bottom:18px }
-    .card{ background:#0f1724; border-radius:10px; padding:14px; margin-bottom:14px; border:1px solid rgba(255,255,255,0.03) }
-    .stats{ display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap }
-    .stat-item{ flex:1; min-width:180px }
-    .stat-item strong{ display:block; color:#cfeeff; margin-bottom:6px }
-    .stat-item {
+    body {
+  font-family: system-ui, sans-serif;
+  background: #0b0b0b;
+  color: #e6eef6;
+  margin: 0;
+  padding: 20px;
+}
+
+.wrap {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+h1 {
+  color: #00bcd4;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #9aa6b2;
+  margin-bottom: 18px;
+}
+
+.card {
+  background: #0f1724;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* 🌐 Stats Layout */
+.stats {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.stat-item {
   flex: 1;
   min-width: 200px;
   text-align: center;
@@ -30,6 +63,14 @@
   box-shadow: 0 0 8px rgba(0, 255, 255, 0.1);
 }
 
+.stat-item strong {
+  display: block;
+  color: #74d0f1;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
 .value {
   font-size: 1.4rem;
   font-weight: 700;
@@ -37,11 +78,23 @@
   margin-top: 4px;
 }
 
+/* 🎨 Interpretation Colors */
 .interpret {
   font-size: 13px;
-  color: #9aa6b2;
   margin-top: 6px;
   opacity: 0.9;
+}
+
+.interpret.bullish {
+  color: #7ef1a6;
+}
+
+.interpret.neutral {
+  color: #fff29a;
+}
+
+.interpret.bearish {
+  color: #ff9b9b;
 }
 
 .small-note {
@@ -50,49 +103,64 @@
   color: #8aa6c9;
 }
 
-.highlight strong {
-  color: #74d0f1;
+/* 📊 Sentiment Box */
+.sentiment {
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  margin-top: 10px;
 }
-    .interpret.bullish {
+
+.bullish {
+  background: #033;
   color: #7ef1a6;
 }
-.interpret.neutral {
+
+.neutral {
+  background: #333300;
   color: #fff29a;
 }
-.interpret.bearish {
+
+.bearish {
+  background: #300;
   color: #ff9b9b;
 }
-    .interpret {
-  font-size: 13px;
-  color: #9aa6b2;
-  margin-top: 3px;
-  opacity: 0.9;
-    }
-    .sentiment{ text-align:center; padding:10px; border-radius:8px; font-weight:700; margin-top:10px }
-    .bullish{ background:#033; color:#7ef1a6 }
-    .neutral{ background:#333300; color:#fff29a }
-    .bearish{ background:#300; color:#ff9b9b }
-    .progress{ color:#9aa6b2; font-size:13px; margin-top:8px }
-    table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:13px }
-    th,td{ padding:8px; border-bottom:1px solid rgba(255,255,255,0.03); text-align:left }
-    th{ color:#74d0f1; font-weight:700 }
-    tr:hover{ background: rgba(255,255,255,0.01) }
-    .controls{ display:flex; gap:8px; align-items:center; justify-content:center; margin-bottom:12px; flex-wrap:wrap }
-    button, select { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:#071025; color:#e6eef6; cursor:pointer }
-    .error{ color:#ffb4b4; margin-top:8px }
-    footer{ text-align:center; color:#8897a8; margin-top:18px; font-size:13px }
-    #phaseDisplay { padding:10px; border-radius:8px; text-align:center; font-weight:600; margin-top:10px; }
-.phase-altseason { background:#002b1b; color:#90ffb0; }
-.phase-transition { background:#332d00; color:#fff29a; }
-.phase-correction { background:#331800; color:#ffc58a; }
-.phase-capitulation { background:#330000; color:#ff9b9b; }
-    /* 🪜 Phase Ladder Styles */
+
+/* 🪜 Market Phase Ladder */
+#phaseDisplay {
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.phase-altseason {
+  background: #002b1b;
+  color: #90ffb0;
+}
+
+.phase-transition {
+  background: #332d00;
+  color: #fff29a;
+}
+
+.phase-correction {
+  background: #331800;
+  color: #ffc58a;
+}
+
+.phase-capitulation {
+  background: #330000;
+  color: #ff9b9b;
+}
+
 .phase-ladder {
   margin-top: 10px;
   text-align: center;
 }
+
 .ladder-track {
   position: relative;
   height: 8px;
@@ -100,54 +168,123 @@
   border-radius: 6px;
   overflow: hidden;
 }
+
 .ladder-bar {
   position: absolute;
   top: 0;
   left: 0;
   height: 100%;
   width: 6%;
-  background: rgba(255,255,255,0.8);
+  background: rgba(255, 255, 255, 0.8);
   border-radius: 6px;
   transition: left 0.8s ease;
 }
+
 .ladder-labels {
   display: flex;
   justify-content: space-between;
   margin-top: 4px;
   font-size: 12px;
   color: #bbb;
-  }
-/* 🧭 Footer Styles */
+}
+
+/* ⚙️ Miscellaneous UI */
+.progress {
+  color: #9aa6b2;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.error {
+  color: #ffb4b4;
+  margin-top: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+th,
+td {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  text-align: left;
+}
+
+th {
+  color: #74d0f1;
+  font-weight: 700;
+}
+
+tr:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+button,
+select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #071025;
+  color: #e6eef6;
+  cursor: pointer;
+}
+
+/* 🧭 Footer */
 .footer {
   text-align: center;
   margin-top: 40px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   color: #99a5b5;
   font-size: 13px;
   line-height: 1.6;
 }
+
 .footer a {
   color: #7cd8ff;
   text-decoration: none;
 }
+
 .footer a:hover {
   text-decoration: underline;
 }
+
 .footer-note {
   font-size: 12px;
   opacity: 0.8;
 }
+
 .footer-copy {
   font-size: 11px;
   margin-top: 4px;
   color: #777;
 }
+
 .brand {
   color: #00bcd4;
   font-weight: 600;
 }
-    @media (max-width:720px) { .stats { flex-direction:column; gap:10px } }
+
+/* 📱 Responsive */
+@media (max-width: 720px) {
+  .stats {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
   </style>
 </head>
 <body>
