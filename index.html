@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Crypto Market Sentiment Analyzer — Robust</title>
   <style>
+    #phaseDisplay { padding:10px; border-radius:8px; text-align:center; font-weight:600; margin-top:10px; }
+.phase-altseason { background:#002b1b; color:#90ffb0; }
+.phase-transition { background:#332d00; color:#fff29a; }
+.phase-correction { background:#331800; color:#ffc58a; }
+.phase-capitulation { background:#330000; color:#ff9b9b; }
+    
     body { font-family: system-ui, sans-serif; background:#0b0b0b; color:#e6eef6; margin:0; padding:20px; }
     .wrap{max-width:980px;margin:0 auto}
     h1 { color:#00bcd4; text-align:center; margin-bottom:6px; }
@@ -408,14 +414,7 @@ async function runAnalysis(forceFetch=false){
       const displayCoins = cached.slice(0, displayN);
       const { btc, btcGap, altGaps } = computeGaps(sentimentCoins);
       const sentimentResults = deriveSentiment(btcGap, altGaps);
-      const phaseInfo = determineMarketPhase(
-  btcGap,
-  sentimentResults.avgAltGap,
-  sentimentResults.ratio,          // ✅ correct variable name
-  sentimentResults.strongCount,    // ✅ correct variable name
-  sentimentResults.lagCount        // ✅ correct variable name
-);
-updatePhaseDisplay(phaseInfo);
+      
       // UI update
       updateUI(btc, btcGap, sentimentResults);
       renderTopTables(displayCoins);
@@ -488,6 +487,22 @@ async function fetchAndUpdate(scope, displayN, background = false) {
   }
   }
 
+  function updatePhaseDisplay({ phase, description, dominance }) {
+  const el = document.getElementById("phaseDisplay");
+  if (!el) return;
+  let cls = "";
+  if (phase.includes("Altseason")) cls = "phase-altseason";
+  else if (phase.includes("Transition")) cls = "phase-transition";
+  else if (phase.includes("Correction")) cls = "phase-correction";
+  else if (phase.includes("Capitulation")) cls = "phase-capitulation";
+  el.className = cls;
+  el.innerHTML = `
+    <div class="text-lg font-bold mt-2">${phase}</div>
+    <div class="text-sm opacity-80">${description}</div>
+    <div class="text-xs opacity-60 mt-1">⚖️ ${dominance}</div>
+  `;
+  }
+
 // update UI helper
 function updateUI(btc, btcGap, sentimentResults){
   if (!btc || btcGap == null || !Number.isFinite(btcGap)){
@@ -507,15 +522,15 @@ function updateUI(btc, btcGap, sentimentResults){
   setSentimentUI(`${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`, sentimentResults.sentimentClass);
 }
 
-  function updatePhaseDisplay({ phase, description, dominance }) {
-  const el = document.getElementById("phaseDisplay");
-  if (!el) return;
-  el.innerHTML = `
-    <div class="text-lg font-bold mt-2">${phase}</div>
-    <div class="text-sm opacity-80">${description}</div>
-    <div class="text-xs opacity-60 mt-1">⚖️ ${dominance}</div>
-  `;
-  }
+  // 🧭 Update market phase dynamically
+  const phaseInfo = determineMarketPhase(
+    btcGap,
+    sentimentResults.avgAltGap,
+    sentimentResults.ratio,
+    sentimentResults.strongCount,
+    sentimentResults.lagCount
+  );
+  updatePhaseDisplay(phaseInfo);
 
 // wire controls
 refreshNowBtn.addEventListener('click', ()=> { runAnalysis(true); });
