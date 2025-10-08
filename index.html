@@ -31,6 +31,35 @@
 .phase-transition { background:#332d00; color:#fff29a; }
 .phase-correction { background:#331800; color:#ffc58a; }
 .phase-capitulation { background:#330000; color:#ff9b9b; }
+    /* 🪜 Phase Ladder Styles */
+.phase-ladder {
+  margin-top: 10px;
+  text-align: center;
+}
+.ladder-track {
+  position: relative;
+  height: 8px;
+  background: linear-gradient(to right, #800, #aa6200, #bba800, #007b3a);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ladder-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 6%;
+  background: rgba(255,255,255,0.8);
+  border-radius: 6px;
+  transition: left 0.8s ease;
+}
+.ladder-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #bbb;
+  }
     @media (max-width:720px) { .stats { flex-direction:column; gap:10px } }
   </style>
 </head>
@@ -94,6 +123,18 @@
       </div>
 
       <div id="phaseDisplay" class="mt-3 p-2 rounded bg-black/20"></div>
+      <!-- 🔰 Market Phase Ladder -->
+<div id="phaseLadder" class="phase-ladder">
+  <div class="ladder-track">
+    <div id="ladderBar" class="ladder-bar"></div>
+  </div>
+  <div class="ladder-labels">
+    <span>🔴 Bottom</span>
+    <span>🟠 Correction</span>
+    <span>🟡 Transition</span>
+    <span>🟢 Altseason</span>
+  </div>
+</div>
 
       <div id="sentiment" class="sentiment neutral">Loading sentiment…</div>
       <div id="progressInfo" class="progress">Initializing…</div>
@@ -504,6 +545,22 @@ async function fetchAndUpdate(scope, displayN, background = false) {
   `;
   }
 
+  // 🪜 Update ladder position based on ratio and BTC drawdown
+function updatePhaseLadder(awr, btcGap) {
+  const bar = document.getElementById('ladderBar');
+  if (!bar) return;
+
+  let leftPercent = 0;
+
+  if (awr > 15 && btcGap < 10) leftPercent = 2;        // 🔴 Capitulation
+  else if (awr > 8 && awr <= 15) leftPercent = 33;     // 🟠 Correction
+  else if (awr >= 3 && awr <= 8) leftPercent = 66;     // 🟡 Transition
+  else if (awr < 3 && btcGap < 15) leftPercent = 94;   // 🟢 Altseason
+  else leftPercent = 50;                               // Neutral / Between
+
+  bar.style.left = `${leftPercent}%`;
+}
+
 // update UI helper
 function updateUI(btc, btcGap, sentimentResults){
   if (!btc || btcGap == null || !Number.isFinite(btcGap)){
@@ -531,6 +588,7 @@ function updateUI(btc, btcGap, sentimentResults){
     sentimentResults.lagCount
   );
   updatePhaseDisplay(phaseInfo);
+  updatePhaseLadder(sentimentResults.ratio, btcGap);
 }
 
 // wire controls
