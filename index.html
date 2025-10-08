@@ -860,7 +860,7 @@ function updatePhaseLadder(awr, btcGap) {
 
   async function fetchBTCdominance() {
   try {
-    const res = await fetch('/api/coins');
+    const res = await fetch("/api/btc-dominance");
     const data = await res.json();
     const dominance = data.data.market_cap_percentage.btc;
     return dominance;
