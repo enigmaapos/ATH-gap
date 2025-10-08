@@ -412,7 +412,32 @@ function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
 
   return { phase, description, insight, dominance };
 }
-  
+
+  function interpretAWR(awrValue) {
+  let phase = "";
+  let description = "";
+  let colorClass = "neutral";
+
+  if (awrValue <= 3) {
+    phase = "🟢 Full Altseason";
+    description = "Altcoins are outperforming Bitcoin — strong capital rotation underway.";
+    colorClass = "bullish";
+  } else if (awrValue > 3 && awrValue <= 8) {
+    phase = "🟡 Early Altseason";
+    description = "Altcoins starting to catch up — rotation phase beginning.";
+    colorClass = "neutral";
+  } else if (awrValue > 8 && awrValue <= 15) {
+    phase = "🟠 Bitcoin Dominance Phase";
+    description = "Bitcoin leading; altcoins lagging. Altseason not yet started.";
+    colorClass = "bearish";
+  } else {
+    phase = "🔴 Capitulation / Bottom Zone";
+    description = "Altcoins extremely weak vs Bitcoin — historically near bottoms.";
+    colorClass = "bearish";
+  }
+
+  return { phase, description, colorClass };
+  }
 
 // helper to render top lists
 function renderTopTables(displayList) {
@@ -693,6 +718,18 @@ async function updateUI(btc, btcGap, sentimentResults) {
   ratioEl.textContent = !Number.isFinite(sentimentResults.ratio)
     ? '∞'
     : `${sentimentResults.ratio.toFixed(2)}×`;
+
+  // 🧮 Interpret Altcoin Weakness Ratio
+const ratioValue = sentimentResults.ratio;
+const ratioPhaseEl = document.getElementById('ratioPhase');
+
+if (Number.isFinite(ratioValue)) {
+  const { phase, description, colorClass } = interpretAWR(ratioValue);
+  ratioPhaseEl.textContent = `${phase} — ${description}`;
+  ratioPhaseEl.className = `interpret ${colorClass}`;
+} else {
+  ratioPhaseEl.textContent = '—';
+}
 
   dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
 
