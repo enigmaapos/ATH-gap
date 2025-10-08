@@ -316,34 +316,41 @@ function deriveSentiment(btcGap, altGaps) {
 }
 
 function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
-  let phase = "Unknown";
+  let phase = "Neutral";
   let description = "";
-  
+  let insight = "";
+
   if (awr < 3 && btcGap < 15) {
     phase = "🟢 Altseason / Expansion";
     description = "Altcoins are outperforming Bitcoin. Strong risk-on momentum.";
+    insight = "📈 Historically marks the mid-bull run where altcoins explode higher.";
   } 
   else if (awr >= 3 && awr <= 8 && btcGap < 25) {
     phase = "🟡 Transition / Caution";
     description = "Bitcoin is still leading, but altcoins are regaining traction. Watch for rotation.";
+    insight = "⚖️ Often appears mid-cycle before either a correction or a renewed rally.";
   } 
   else if (awr > 8 && awr <= 15) {
     phase = "🟠 Correction / Rotation";
     description = "Liquidity is rotating back into Bitcoin or stablecoins. Market cautious.";
+    insight = "🔁 Common before major shakeouts or after temporary overextension.";
   } 
   else if (awr > 15 && btcGap < 10) {
     phase = "🔴 Capitulation / Bottom";
     description = "Altcoins are extremely weak vs Bitcoin. Historically near market bottoms.";
+    insight = "🪙 Historically, this phase often precedes recovery — smart money quietly accumulates strong altcoins.";
   } 
   else {
     phase = "Neutral";
     description = "Mixed sentiment — no clear leadership between BTC and altcoins.";
+    insight = "🧭 Watch closely for upcoming shifts in BTC dominance or altcoin strength.";
   }
 
   const dominance = strongCount > lagCount ? "Strong Coins Dominant" : "Lagging Coins Dominant";
 
-  return { phase, description, dominance };
+  return { phase, description, insight, dominance };
 }
+  
 
 // helper to render top lists
 function renderTopTables(displayList){
@@ -486,19 +493,14 @@ async function fetchAndUpdate(scope, displayN, background = false) {
   }
   }
 
-  function updatePhaseDisplay({ phase, description, dominance }) {
+  function updatePhaseDisplay({ phase, description, insight, dominance }) {
   const el = document.getElementById("phaseDisplay");
   if (!el) return;
-  let cls = "";
-  if (phase.includes("Altseason")) cls = "phase-altseason";
-  else if (phase.includes("Transition")) cls = "phase-transition";
-  else if (phase.includes("Correction")) cls = "phase-correction";
-  else if (phase.includes("Capitulation")) cls = "phase-capitulation";
-  el.className = cls;
   el.innerHTML = `
     <div class="text-lg font-bold mt-2">${phase}</div>
     <div class="text-sm opacity-80">${description}</div>
     <div class="text-xs opacity-60 mt-1">⚖️ ${dominance}</div>
+    <div class="text-xs mt-2 italic opacity-70">${insight}</div>
   `;
   }
 
