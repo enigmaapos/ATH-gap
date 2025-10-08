@@ -88,6 +88,8 @@
         </div>
       </div>
 
+      <div id="phaseDisplay" class="mt-3 p-2 rounded bg-black/20"></div>
+
       <div id="sentiment" class="sentiment neutral">Loading sentiment…</div>
       <div id="progressInfo" class="progress">Initializing…</div>
       <div id="errorMsg" class="error" style="display:none"></div>
@@ -308,6 +310,36 @@ function deriveSentiment(btcGap, altGaps) {
   };
 }
 
+function determineMarketPhase(btcGap, altGapAvg, awr, strongCount, lagCount) {
+  let phase = "Unknown";
+  let description = "";
+  
+  if (awr < 3 && btcGap < 15) {
+    phase = "🟢 Altseason / Expansion";
+    description = "Altcoins are outperforming Bitcoin. Strong risk-on momentum.";
+  } 
+  else if (awr >= 3 && awr <= 8 && btcGap < 25) {
+    phase = "🟡 Transition / Caution";
+    description = "Bitcoin is still leading, but altcoins are regaining traction. Watch for rotation.";
+  } 
+  else if (awr > 8 && awr <= 15) {
+    phase = "🟠 Correction / Rotation";
+    description = "Liquidity is rotating back into Bitcoin or stablecoins. Market cautious.";
+  } 
+  else if (awr > 15 && btcGap < 10) {
+    phase = "🔴 Capitulation / Bottom";
+    description = "Altcoins are extremely weak vs Bitcoin. Historically near market bottoms.";
+  } 
+  else {
+    phase = "Neutral";
+    description = "Mixed sentiment — no clear leadership between BTC and altcoins.";
+  }
+
+  const dominance = strongCount > lagCount ? "Strong Coins Dominant" : "Lagging Coins Dominant";
+
+  return { phase, description, dominance };
+}
+
 // helper to render top lists
 function renderTopTables(displayList){
   const valid = displayList.filter(c => c.ath != null && c.current_price != null && Number(c.ath) > Number(c.current_price));
@@ -376,6 +408,8 @@ async function runAnalysis(forceFetch=false){
       const displayCoins = cached.slice(0, displayN);
       const { btc, btcGap, altGaps } = computeGaps(sentimentCoins);
       const sentimentResults = deriveSentiment(btcGap, altGaps);
+      const phaseInfo = determineMarketPhase(btcGap, sentimentResults.avgAltGap, sentimentResults.weaknessRatio, sentimentResults.strong, sentimentResults.lag);
+updatePhaseDisplay(phaseInfo);
       // UI update
       updateUI(btc, btcGap, sentimentResults);
       renderTopTables(displayCoins);
@@ -466,6 +500,16 @@ function updateUI(btc, btcGap, sentimentResults){
   dominanceEl.textContent = `${sentimentResults.dominance} (Strong:${sentimentResults.strongCount}, Lag:${sentimentResults.lagCount})`;
   setSentimentUI(`${sentimentResults.sentimentEmoji} Market Sentiment: ${sentimentResults.sentiment} (${sentimentResults.sentimentScore})`, sentimentResults.sentimentClass);
 }
+
+  function updatePhaseDisplay({ phase, description, dominance }) {
+  const el = document.getElementById("phaseDisplay");
+  if (!el) return;
+  el.innerHTML = `
+    <div class="text-lg font-bold mt-2">${phase}</div>
+    <div class="text-sm opacity-80">${description}</div>
+    <div class="text-xs opacity-60 mt-1">⚖️ ${dominance}</div>
+  `;
+  }
 
 // wire controls
 refreshNowBtn.addEventListener('click', ()=> { runAnalysis(true); });
