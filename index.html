@@ -605,13 +605,15 @@ function renderTopTables(displayList) {
   // 🧱 Wrapped / bridged / staking derivatives
   'wrapped', 'bridged', 'bridge', 'btc.b', 'wbtc', 'tbtc', 'solvbtc',
   'staked', 'restaked', 'liquid staking', 'lbtc', 'reth', 'seth', 'oseth', 'rseth',
+  'ethx', 'sweth', 'gteth', 'cbeth', 'steth', 'swapped',
   'lp', 'liquidity provider',
 
   // 💼 Synthetic, bond, or derivative assets
-  'bond', 'derivative', 'index', 'yield', 'heloc', 'synthetic', 'tokenized', 'rwA',
+  'bond', 'derivative', 'index', 'yield', 'heloc', 'synthetic', 'tokenized', 'rwa',
 
-  // ⚠️ Extra noisy or mirrored assets
-  'mirror', 'brc', 'sb', 'cbtc', 'abtc', 'mbtc', 'fbnb', 'feth', 'hbtc'
+  // ⚠️ Extra noisy, mirrored, or illiquid assets
+  'mirror', 'brc', 'sb', 'cbtc', 'abtc', 'mbtc', 'fbnb', 'feth', 'hbtc',
+  'solmev', 'chainopera'
 ];
 
   const valid = displayList.filter(c => {
