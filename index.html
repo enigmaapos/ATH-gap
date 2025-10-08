@@ -408,7 +408,13 @@ async function runAnalysis(forceFetch=false){
       const displayCoins = cached.slice(0, displayN);
       const { btc, btcGap, altGaps } = computeGaps(sentimentCoins);
       const sentimentResults = deriveSentiment(btcGap, altGaps);
-      const phaseInfo = determineMarketPhase(btcGap, sentimentResults.avgAltGap, sentimentResults.weaknessRatio, sentimentResults.strong, sentimentResults.lag);
+      const phaseInfo = determineMarketPhase(
+  btcGap,
+  sentimentResults.avgAltGap,
+  sentimentResults.ratio,          // ✅ correct variable name
+  sentimentResults.strongCount,    // ✅ correct variable name
+  sentimentResults.lagCount        // ✅ correct variable name
+);
 updatePhaseDisplay(phaseInfo);
       // UI update
       updateUI(btc, btcGap, sentimentResults);
