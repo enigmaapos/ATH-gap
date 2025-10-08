@@ -86,93 +86,94 @@ button,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,2
       <button id="refreshNow">Refresh Now</button>
     </div>
 
-    <div id="sentiment" class="sentiment neutral">Loading sentiment…</div>
-      <div id="progressInfo" class="progress">Initializing…</div>
-      <div id="errorMsg" class="error" style="display:none"></div>
-  
-    <hr class="my-3 border-slate-700" />
+  <div class="wrap">
 
+  <!-- 🧭 Sentiment + System Info -->
+  <div id="sentiment" class="sentiment neutral">Loading sentiment…</div>
+  <div id="progressInfo" class="progress">Initializing…</div>
+  <div id="errorMsg" class="error" style="display:none"></div>
+
+  <div class="card">
     <div class="stats">
-  <div class="stat-item highlight">
-  <strong>Bitcoin Dominance</strong>
-  <div id="btcDominance">Loading…</div>
-  <div id="btcDomInterpret" class="interpret"></div>
-  </div>
-
-    
-  <div class="stat-item highlight">
-    <strong>Bitcoin Drawdown</strong>
-    <div id="btcGap" class="value">Loading…</div>
-    <div id="btcInterpret" class="interpret">—</div>
-  </div>
-
-  <div class="stat-item highlight">
-    <strong>Average Altcoin Drawdown</strong>
-    <div id="altGap" class="value">Loading…</div>
-    <div id="altInterpret" class="interpret">—</div>
-  </div>
-
-  <div class="stat-item highlight">
-    <strong>Altcoins Weakness Ratio</strong>
-    <div id="ratio" class="value">Loading…</div>
-    <div class="interpret small-note">Lower = Altseason Potential</div>
-  </div>
-    
-      
-
-        
-      <div id="phaseDisplay" class="mt-3 p-2 rounded bg-black/20"></div>
-      <!-- 🔰 Market Phase Ladder -->
-<div id="phaseLadder" class="phase-ladder">
-  <div class="ladder-track">
-    <div id="ladderBar" class="ladder-bar"></div>
-  </div>
-  <div class="ladder-labels">
-    <span>🔴 Bottom</span>
-    <span>🟠 Correction</span>
-    <span>🟡 Transition</span>
-    <span>🟢 Altseason</span>
-  </div>
-</div>
-    </div>
-
-    <hr class="my-3 border-slate-700" />
+      <div class="stat-item highlight">
+        <strong>Bitcoin Dominance</strong>
+        <div id="btcDominance" class="value">Loading…</div>
+        <div id="btcDomInterpret" class="interpret">—</div>
+      </div>
 
       <div class="stat-item highlight">
-  <strong>Dominant Group</strong>
-  <div id="dominance">Loading…</div>
-</div>
+        <strong>Bitcoin Drawdown</strong>
+        <div id="btcGap" class="value">Loading…</div>
+        <div id="btcInterpret" class="interpret">—</div>
+      </div>
+
+      <div class="stat-item highlight">
+        <strong>Average Altcoin Drawdown</strong>
+        <div id="altGap" class="value">Loading…</div>
+        <div id="altInterpret" class="interpret">—</div>
+      </div>
+
+      <div class="stat-item highlight">
+        <strong>Altcoins Weakness Ratio</strong>
+        <div id="ratio" class="value">Loading…</div>
+        <div class="interpret small-note">Lower = Altseason Potential</div>
+      </div>
+    </div>
+
+    <!-- 🪜 Market Phase Display -->
+    <div id="phaseDisplay" class="mt-3 p-2 rounded bg-black/20"></div>
+    <div id="phaseLadder" class="phase-ladder">
+      <div class="ladder-track">
+        <div id="ladderBar" class="ladder-bar"></div>
+      </div>
+      <div class="ladder-labels">
+        <span>🔴 Bottom</span>
+        <span>🟠 Correction</span>
+        <span>🟡 Transition</span>
+        <span>🟢 Altseason</span>
+      </div>
+    </div>
+
+    <!-- ⚖️ Dominance Overview -->
+    <div class="stat-item highlight" style="margin-top:16px;">
+      <strong>Dominant Group</strong>
+      <div id="dominance" class="value">Loading…</div>
+    </div>
   </div>
 
-    <hr class="my-3 border-slate-700" />
+  <!-- 📈 Top Performing Coins -->
+  <div class="card">
+    <h3 style="color:#9ef5c6; text-align:center;">📈 Top 10 Strongest (closest to ATH)</h3>
+    <table id="topStrongest">
+      <thead>
+        <tr><th>#</th><th>Coin</th><th>Symbol</th><th>Price</th><th>Drawdown</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align:center;color:#8c9db0">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
 
+  <!-- 📉 Lagging Coins -->
+  <div class="card">
+    <h3 style="color:#ffb3b3; text-align:center;">📉 Top 10 Lagging (farthest from ATH)</h3>
+    <table id="topLagging">
+      <thead>
+        <tr><th>#</th><th>Coin</th><th>Symbol</th><th>Price</th><th>Drawdown</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align:center;color:#8c9db0">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
 
-    <div class="card">
-      
-      <h3 style="color:#9ef5c6; text-align:center">📈 Top 10 Strongest (closest to ATH)</h3>
-      <table id="topStrongest">
-        <thead><tr><th>#</th><th>Coin</th><th>Symbol</th><th>Price</th><th>Drawdown</th></tr></thead>
-        <tbody><tr><td colspan="5" style="text-align:center;color:#8c9db0">Loading…</td></tr></tbody>
-      </table>
-    </div>
+  <!-- 🧭 Footer -->
+  <footer class="footer">
+    <div>📊 <strong>Crypto Market Sentiment Analyzer</strong> — powered by <a href="https://www.coingecko.com" target="_blank" rel="noopener">CoinGecko</a></div>
+    <div class="footer-note">Realtime client-side analysis • Smart cache + fallback • Built for research and market insights</div>
+    <div class="footer-copy">© 2025 <span class="brand">WatchMe Analytics</span>. All rights reserved.</div>
+  </footer>
 
-    <hr class="my-3 border-slate-700" />
-
-    <div class="card">
-      <h3 style="color:#ffb3b3; text-align:center">📉 Top 10 Lagging (farthest from ATH)</h3>
-      <table id="topLagging">
-        <thead><tr><th>#</th><th>Coin</th><th>Symbol</th><th>Price</th><th>Drawdown</th></tr></thead>
-        <tbody><tr><td colspan="5" style="text-align:center;color:#8c9db0">Loading…</td></tr></tbody>
-      </table>
-    </div>
-
-    <hr class="my-3 border-slate-700" />
-
-    <footer class="footer">
-  <div>📊 <strong>Crypto Market Sentiment Analyzer</strong> — powered by <a href="https://www.coingecko.com" target="_blank" rel="noopener">CoinGecko</a></div>
-  <div class="footer-note">Realtime client-side analysis • Smart cache + fallback • Built for research and market insights</div>
-  <div class="footer-copy">© 2025 <span class="brand">WatchMe Analytics</span>. All rights reserved.</div>
-</footer>
   </div>
 
 <script>
