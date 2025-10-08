@@ -121,7 +121,7 @@
  - shows error messages and retry button
 */
 
-const COINGECKO = 'https://api.coingecko.com/api/v3/coins/markets';
+const COINGECKO = '/api/coins';
 const PER_PAGE = 250;            // max per page
 const DEFAULT_DELAY = 1500;      // ms between page calls
 const CACHE_KEY = 'cg_sentiment_cache_v1';
@@ -194,7 +194,7 @@ async function fetchPages(totalCoins, delayMs = DEFAULT_DELAY){
   let all = [];
   for (let p = 1; p <= pages; p++){
     setProgress(`Fetching page ${p}/${pages}...`);
-    const url = `${COINGECKO}?vs_currency=usd&order=market_cap_desc&per_page=${PER_PAGE}&page=${p}&sparkline=false&price_change_percentage=24h`;
+    const url = `${COINGECKO}?page=${p}`;
     try {
       const res = await fetchWithTimeout(url, 12000);
       if (!res.ok){
