@@ -999,6 +999,7 @@ refreshSelect.addEventListener('change', ()=> {
 // initial run
 runAnalysis(false);
   renderMarketCapHistory();
+setInterval(renderMarketCapHistory, 300000); // every 5 minutes
 
 // expose for debugging
 window._sentiment_debug = {
