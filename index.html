@@ -434,50 +434,40 @@ function deriveSentiment(btcGap, altGaps) {
     const altData = dedup.map(x => x.altCap / 1e9);
 
    new Chart(ctx, {
-  type: "line",
+  type: "bar",
   data: {
     labels,
     datasets: [
       {
-        label: "BTC Market Cap (Billions $)",
-        data: btcData,
-        borderColor: "#f7931a",
-        backgroundColor: "rgba(247,147,26,0.25)",
-        borderWidth: 3,
-        fill: true,
-        tension: 0.35,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: "#f7931a",
-        pointHoverBorderColor: "#fff",
-        shadowOffsetX: 0,
-        shadowOffsetY: 2,
-        shadowBlur: 6,
-        shadowColor: "rgba(247,147,26,0.4)"
+        label: "Altcoins Market Cap (B$)",
+        data: altData,
+        backgroundColor: "rgba(0,188,212,0.55)",
+        borderColor: "#00bcd4",
+        borderWidth: 1.5,
+        borderRadius: 5,
+        barPercentage: 0.55,
+        categoryPercentage: 0.6
       },
       {
-        label: "Altcoins Market Cap (Billions $)",
-        data: altData,
-        borderColor: "#00e5ff",
-        backgroundColor: "rgba(0,229,255,0.18)",
+        label: "BTC Market Cap (B$)",
+        data: btcData,
+        type: "line",
+        borderColor: "#f7931a",
+        backgroundColor: "rgba(247,147,26,0.15)",
         borderWidth: 3,
-        fill: true,
         tension: 0.35,
-        pointRadius: 3,
+        fill: false,
+        pointRadius: 4,
         pointHoverRadius: 6,
-        pointHoverBackgroundColor: "#00e5ff",
-        pointHoverBorderColor: "#fff",
-        shadowOffsetX: 0,
-        shadowOffsetY: 2,
-        shadowBlur: 6,
-        shadowColor: "rgba(0,229,255,0.4)"
+        pointBackgroundColor: "#f7931a",
+        yAxisID: "y"
       }
     ]
   },
   options: {
     responsive: true,
     animation: {
-      duration: 1200,
+      duration: 1000,
       easing: "easeInOutQuart"
     },
     plugins: {
@@ -486,17 +476,19 @@ function deriveSentiment(btcGap, altGaps) {
         labels: {
           color: "#eaf4ff",
           font: { size: 14, family: "Inter, sans-serif", weight: "600" },
-          padding: 16,
+          padding: 14,
           boxWidth: 20
         }
       },
       tooltip: {
-        backgroundColor: "rgba(10,15,25,0.9)",
+        mode: "index",
+        intersect: false,
+        backgroundColor: "rgba(15,20,30,0.95)",
         titleColor: "#fff",
-        bodyColor: "#d3e9ff",
+        bodyColor: "#cfeeff",
         borderColor: "#333",
         borderWidth: 1,
-        padding: 12,
+        padding: 10,
         titleFont: { size: 13, weight: "bold" },
         bodyFont: { size: 13 }
       }
@@ -514,9 +506,9 @@ function deriveSentiment(btcGap, altGaps) {
         grid: { color: "rgba(255,255,255,0.07)" },
         ticks: {
           color: "#cfe7ff",
-          font: { size: 12, family: "Inter, sans-serif" },
           callback: v => v.toFixed(0) + "B",
-          padding: 8
+          font: { size: 12 },
+          padding: 6
         },
         title: {
           display: true,
