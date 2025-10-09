@@ -398,7 +398,7 @@ function deriveSentiment(btcGap, altGaps) {
 
   try {
     // 🟢 Fetch live data
-    const res = await fetch("/api/coins");
+    const res = await fetch("/api/btc-dominance");
     const data = await res.json();
 
     const btcDom = data.data.market_cap_percentage.btc;
