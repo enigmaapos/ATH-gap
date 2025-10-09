@@ -94,13 +94,17 @@ button,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,2
   <div id="progressInfo" class="progress">Initializing…</div>
   <div id="errorMsg" class="error" style="display:none"></div>
 
-    <!-- 🧮 Historical Market Caps -->
+<!-- 🧮 BTC vs Altcoins Market Cap + Dominance Timeline -->
 <div class="card bg-black/30 rounded-xl shadow-lg p-4 border border-slate-800">
   <h3 style="color:#74d0f1;text-align:center;font-size:1.15rem;font-weight:600;margin-bottom:10px;">
     📊 BTC vs Altcoins Market Cap (7-Day Trend)
   </h3>
 
   <canvas id="marketCapChart" height="240"></canvas>
+
+  <!-- 🧭 Dominance Timeline -->
+  <div id="dominanceTimeline" class="mt-4 text-sm text-slate-300"></div>
+</div>
 
   <div style="text-align:center;margin-top:8px;font-size:0.9rem;color:#9aa6b2;">
     <span style="color:#f7931a;">🟧 BTC</span> vs 
@@ -394,11 +398,12 @@ function deriveSentiment(btcGap, altGaps) {
 
   async function renderMarketCapHistory() {
   const ctx = document.getElementById("marketCapChart");
-  if (!ctx) return;
+  const timelineEl = document.getElementById("dominanceTimeline");
+  if (!ctx || !timelineEl) return;
 
   try {
-    // 🟢 Fetch live data
-    const res = await fetch("/api/btc-dominance");
+    // 🟢 Fetch live BTC & global data
+    const res = await fetch("https://api.coingecko.com/api/v3/global");
     const data = await res.json();
 
     const btcDom = data.data.market_cap_percentage.btc;
@@ -408,7 +413,7 @@ function deriveSentiment(btcGap, altGaps) {
     const btcCap = totalMarketCap * (btcDom / 100);
     const altCap = totalMarketCap * (altDom / 100);
 
-    // 🕐 Save and maintain 7-day local history
+    // 🕐 Maintain 7-day local history
     const key = "btc_altcap_history_v1";
     const history = JSON.parse(localStorage.getItem(key) || "[]");
 
@@ -420,7 +425,6 @@ function deriveSentiment(btcGap, altGaps) {
       altDom
     });
 
-    // Deduplicate and keep only last 7 unique days
     const dedup = Object.values(
       history.reduce((acc, h) => {
         acc[h.date] = h;
@@ -432,95 +436,132 @@ function deriveSentiment(btcGap, altGaps) {
 
     // 🧮 Prepare chart data
     const labels = dedup.map(x => x.date);
-    const btcData = dedup.map(x => x.btcCap / 1e9); // billions
+    const btcData = dedup.map(x => x.btcCap / 1e9);
     const altData = dedup.map(x => x.altCap / 1e9);
-new Chart(ctx, {
-  type: "bar",
-  data: {
-    labels,
-    datasets: [
-      {
-        label: "BTC Market Cap (B$)",
-        data: btcData,
-        backgroundColor: "rgba(247,147,26,0.75)", // 🟧 orange
-        borderColor: "#f7931a",
-        borderWidth: 1.5,
-        borderRadius: 5,
-        barPercentage: 0.45,
-        categoryPercentage: 0.6
+
+    // 🎨 Render side-by-side BTC vs Alt bar chart
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "BTC Market Cap (B$)",
+            data: btcData,
+            backgroundColor: "rgba(247,147,26,0.75)",
+            borderColor: "#f7931a",
+            borderWidth: 1.5,
+            borderRadius: 5,
+            barPercentage: 0.45,
+            categoryPercentage: 0.6
+          },
+          {
+            label: "Altcoins Market Cap (B$)",
+            data: altData,
+            backgroundColor: "rgba(0,188,212,0.65)",
+            borderColor: "#00bcd4",
+            borderWidth: 1.5,
+            borderRadius: 5,
+            barPercentage: 0.45,
+            categoryPercentage: 0.6
+          }
+        ]
       },
-      {
-        label: "Altcoins Market Cap (B$)",
-        data: altData,
-        backgroundColor: "rgba(0,188,212,0.65)", // 🔵 blue
-        borderColor: "#00bcd4",
-        borderWidth: 1.5,
-        borderRadius: 5,
-        barPercentage: 0.45,
-        categoryPercentage: 0.6
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    animation: { duration: 1000, easing: "easeInOutQuart" },
-    plugins: {
-      legend: {
-        position: "top",
-        labels: {
-          color: "#eaf4ff",
-          font: { size: 14, family: "Inter, sans-serif", weight: "600" },
-          padding: 14,
-          boxWidth: 20
-        }
-      },
-      tooltip: {
-        mode: "index",
-        intersect: false,
-        backgroundColor: "rgba(15,20,30,0.95)",
-        titleColor: "#fff",
-        bodyColor: "#cfeeff",
-        borderColor: "#333",
-        borderWidth: 1,
-        padding: 10,
-        titleFont: { size: 13, weight: "bold" },
-        bodyFont: { size: 13 }
-      }
-    },
-    scales: {
-      x: {
-        grid: { color: "rgba(255,255,255,0.05)" },
-        ticks: {
-          color: "#a9b8c8",
-          font: { size: 12, family: "Inter, sans-serif" },
-          padding: 8
-        }
-      },
-      y: {
-        grid: { color: "rgba(255,255,255,0.07)" },
-        ticks: {
-          color: "#cfe7ff",
-          callback: v => v.toFixed(0) + "B",
-          font: { size: 12 },
-          padding: 6
+      options: {
+        responsive: true,
+        animation: { duration: 1000, easing: "easeInOutQuart" },
+        plugins: {
+          legend: {
+            position: "top",
+            labels: {
+              color: "#eaf4ff",
+              font: { size: 14, family: "Inter, sans-serif", weight: "600" },
+              padding: 14,
+              boxWidth: 20
+            }
+          },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            backgroundColor: "rgba(15,20,30,0.95)",
+            titleColor: "#fff",
+            bodyColor: "#cfeeff",
+            borderColor: "#333",
+            borderWidth: 1,
+            padding: 10,
+            titleFont: { size: 13, weight: "bold" },
+            bodyFont: { size: 13 }
+          }
         },
-        title: {
-          display: true,
-          text: "Market Cap (Billions USD)",
-          color: "#cfe7ff",
-          font: { size: 13, weight: "600" }
-        }
+        scales: {
+          x: {
+            grid: { color: "rgba(255,255,255,0.05)" },
+            ticks: {
+              color: "#a9b8c8",
+              font: { size: 12, family: "Inter, sans-serif" },
+              padding: 8
+            }
+          },
+          y: {
+            grid: { color: "rgba(255,255,255,0.07)" },
+            ticks: {
+              color: "#cfe7ff",
+              callback: v => v.toFixed(0) + "B",
+              font: { size: 12 },
+              padding: 6
+            },
+            title: {
+              display: true,
+              text: "Market Cap (Billions USD)",
+              color: "#cfe7ff",
+              font: { size: 13, weight: "600" }
+            }
+          }
+        },
+        interaction: { mode: "index", intersect: false }
       }
-    },
-    interaction: { mode: "index", intersect: false }
-  }
-});
-      } catch (err) {
+    });
+
+    // 🧭 Dynamic Dominance Timeline Table
+    const timelineData = [
+      { year: "2013–2016", btc: "85–95%", alts: "5–15%", note: "BTC was the whole market; alts were tiny (LTC, XRP only)." },
+      { year: "Jan 2018 (Altseason Peak)", btc: "~35–37%", alts: "~63–65%", note: "The closest point in history — Ethereum, XRP, and ICO tokens exploded." },
+      { year: "2021 (DeFi + NFT Mania)", btc: "~39–41%", alts: "~59–61%", note: "ETH, BNB, ADA, SOL, and meme coins rallied — but BTC stayed larger overall." },
+      { year: "2022–2024 Bear Market", btc: "45–55%", alts: "45–55%", note: "BTC regained strength as alts crashed harder." },
+      { year: `2025 (Now)`, btc: `${btcDom.toFixed(2)}%`, alts: `${altDom.toFixed(2)}%`, note: "BTC dominant again — similar setup before alt rotations." }
+    ];
+
+    const table = `
+      <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+        <thead>
+          <tr style="color:#74d0f1;text-align:left;">
+            <th>Year</th>
+            <th>BTC Dominance</th>
+            <th>Altcoins Share</th>
+            <th>Market Context</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${timelineData.map(row => `
+            <tr style="border-top:1px solid rgba(255,255,255,0.05);">
+              <td style="padding:6px 4px;color:#d3e3f3;">${row.year}</td>
+              <td style="padding:6px 4px;color:#f7931a;">${row.btc}</td>
+              <td style="padding:6px 4px;color:#00bcd4;">${row.alts}</td>
+              <td style="padding:6px 4px;color:#9aa6b2;">${row.note}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+
+    timelineEl.innerHTML = table;
+
+  } catch (err) {
     console.error("Error fetching market cap history:", err);
   }
   }
-        
 
+  
   async function fetchBTCdominance() {
   try {
     const res = await fetch("/api/btc-dominance");
