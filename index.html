@@ -434,115 +434,87 @@ function deriveSentiment(btcGap, altGaps) {
     const labels = dedup.map(x => x.date);
     const btcData = dedup.map(x => x.btcCap / 1e9); // billions
     const altData = dedup.map(x => x.altCap / 1e9);
-
-    // 🎨 Render dual-axis chart
-    new Chart(ctx, {
-      type: "bar",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "Altcoins Market Cap (B$)",
-            data: altData,
-            backgroundColor: "rgba(0,188,212,0.55)",
-            borderColor: "#00bcd4",
-            borderWidth: 1.5,
-            borderRadius: 5,
-            barPercentage: 0.55,
-            categoryPercentage: 0.6,
-            yAxisID: "yAlt"
-          },
-          {
-            label: "BTC Market Cap (B$)",
-            data: btcData,
-            type: "line",
-            borderColor: "#f7931a",
-            backgroundColor: "rgba(247,147,26,0.15)",
-            borderWidth: 3,
-            tension: 0.35,
-            fill: false,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            pointBackgroundColor: "#f7931a",
-            yAxisID: "yBTC"
-          }
-        ]
+new Chart(ctx, {
+  type: "bar",
+  data: {
+    labels,
+    datasets: [
+      {
+        label: "BTC Market Cap (B$)",
+        data: btcData,
+        backgroundColor: "rgba(247,147,26,0.75)", // 🟧 orange
+        borderColor: "#f7931a",
+        borderWidth: 1.5,
+        borderRadius: 5,
+        barPercentage: 0.45,
+        categoryPercentage: 0.6
       },
-      options: {
-        responsive: true,
-        animation: { duration: 1000, easing: "easeInOutQuart" },
-        plugins: {
-          legend: {
-            position: "top",
-            labels: {
-              color: "#eaf4ff",
-              font: { size: 14, family: "Inter, sans-serif", weight: "600" },
-              padding: 14,
-              boxWidth: 20
-            }
-          },
-          tooltip: {
-            mode: "index",
-            intersect: false,
-            backgroundColor: "rgba(15,20,30,0.95)",
-            titleColor: "#fff",
-            bodyColor: "#cfeeff",
-            borderColor: "#333",
-            borderWidth: 1,
-            padding: 10,
-            titleFont: { size: 13, weight: "bold" },
-            bodyFont: { size: 13 }
-          }
-        },
-        scales: {
-          x: {
-            grid: { color: "rgba(255,255,255,0.05)" },
-            ticks: {
-              color: "#a9b8c8",
-              font: { size: 12, family: "Inter, sans-serif" },
-              padding: 8
-            }
-          },
-          yAlt: {
-            position: "left",
-            grid: { color: "rgba(255,255,255,0.07)" },
-            ticks: {
-              color: "#00bcd4",
-              callback: v => v.toFixed(0) + "B",
-              font: { size: 12 },
-              padding: 6
-            },
-            title: {
-              display: true,
-              text: "Altcoins Market Cap (Billions USD)",
-              color: "#00bcd4",
-              font: { size: 13, weight: "600" }
-            }
-          },
-          yBTC: {
-            position: "right",
-            grid: { drawOnChartArea: false },
-            ticks: {
-              color: "#f7931a",
-              callback: v => v.toFixed(0) + "B",
-              font: { size: 12 },
-              padding: 6
-            },
-            title: {
-              display: true,
-              text: "BTC Market Cap (Billions USD)",
-              color: "#f7931a",
-              font: { size: 13, weight: "600" }
-            }
-          }
-        },
-        interaction: { mode: "index", intersect: false }
+      {
+        label: "Altcoins Market Cap (B$)",
+        data: altData,
+        backgroundColor: "rgba(0,188,212,0.65)", // 🔵 blue
+        borderColor: "#00bcd4",
+        borderWidth: 1.5,
+        borderRadius: 5,
+        barPercentage: 0.45,
+        categoryPercentage: 0.6
       }
-    });
-  } catch (err) {
-    console.error("Error fetching market cap history:", err);
+    ]
+  },
+  options: {
+    responsive: true,
+    animation: { duration: 1000, easing: "easeInOutQuart" },
+    plugins: {
+      legend: {
+        position: "top",
+        labels: {
+          color: "#eaf4ff",
+          font: { size: 14, family: "Inter, sans-serif", weight: "600" },
+          padding: 14,
+          boxWidth: 20
+        }
+      },
+      tooltip: {
+        mode: "index",
+        intersect: false,
+        backgroundColor: "rgba(15,20,30,0.95)",
+        titleColor: "#fff",
+        bodyColor: "#cfeeff",
+        borderColor: "#333",
+        borderWidth: 1,
+        padding: 10,
+        titleFont: { size: 13, weight: "bold" },
+        bodyFont: { size: 13 }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: "rgba(255,255,255,0.05)" },
+        ticks: {
+          color: "#a9b8c8",
+          font: { size: 12, family: "Inter, sans-serif" },
+          padding: 8
+        }
+      },
+      y: {
+        grid: { color: "rgba(255,255,255,0.07)" },
+        ticks: {
+          color: "#cfe7ff",
+          callback: v => v.toFixed(0) + "B",
+          font: { size: 12 },
+          padding: 6
+        },
+        title: {
+          display: true,
+          text: "Market Cap (Billions USD)",
+          color: "#cfe7ff",
+          font: { size: 13, weight: "600" }
+        }
+      }
+    },
+    interaction: { mode: "index", intersect: false }
   }
-     }
+});
         
 
   async function fetchBTCdominance() {
