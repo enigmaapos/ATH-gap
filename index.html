@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="icon" type="image/png" href="assets/logo.png">
   <title>Crypto Market Sentiment Analyzer — Robust</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
 body{font-family:system-ui,sans-serif;background:#0b0b0b;color:#e6eef6;margin:0;padding:20px;}
 .wrap{max-width:980px;margin:0 auto;}
@@ -92,6 +93,15 @@ button,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,2
   <div id="sentiment" class="sentiment neutral">Loading sentiment…</div>
   <div id="progressInfo" class="progress">Initializing…</div>
   <div id="errorMsg" class="error" style="display:none"></div>
+
+    <!-- 🧮 Historical Market Caps -->
+<div class="card">
+  <h3 style="color:#74d0f1;text-align:center;">📊 BTC vs Altcoins Market Cap (7d History)</h3>
+  <canvas id="marketCapChart" height="200"></canvas>
+  <div class="small-note" style="text-align:center;margin-top:6px;">
+    Source: CoinGecko “/global” API — shows daily trend of BTC vs Altcoin capitalization.
+  </div>
+</div>
 
   <div class="card">
     <div class="stats">
@@ -376,6 +386,83 @@ function deriveSentiment(btcGap, altGaps) {
     sentimentScore: sentimentScore.toFixed(3)
   };
 }
+
+  async function renderMarketCapHistory() {
+  const ctx = document.getElementById("marketCapChart");
+  if (!ctx) return;
+
+  try {
+    const res = await fetch("https://api.coingecko.com/api/v3/global");
+    const data = await res.json();
+
+    const btcDom = data.data.market_cap_percentage.btc;
+    const totalMarketCap = data.data.total_market_cap.usd;
+
+    const altDom = 100 - btcDom;
+    const btcCap = totalMarketCap * (btcDom / 100);
+    const altCap = totalMarketCap * (altDom / 100);
+
+    // keep last 7 days history in localStorage
+    const key = "btc_altcap_history_v1";
+    const history = JSON.parse(localStorage.getItem(key) || "[]");
+
+    history.push({
+      date: new Date().toISOString().slice(0, 10),
+      btcCap,
+      altCap,
+      btcDom,
+      altDom
+    });
+
+    // keep last 7 days
+    const dedup = Object.values(
+      history.reduce((acc, h) => {
+        acc[h.date] = h;
+        return acc;
+      }, {})
+    ).slice(-7);
+
+    localStorage.setItem(key, JSON.stringify(dedup));
+
+    const labels = dedup.map(x => x.date);
+    const btcData = dedup.map(x => x.btcCap / 1e9); // in billions
+    const altData = dedup.map(x => x.altCap / 1e9);
+
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "BTC Market Cap (B$)",
+            data: btcData,
+            borderColor: "#f7931a",
+            fill: false,
+            tension: 0.2
+          },
+          {
+            label: "Altcoins Market Cap (B$)",
+            data: altData,
+            borderColor: "#00bcd4",
+            fill: false,
+            tension: 0.2
+          }
+        ]
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: "#cfeeff" } }
+        },
+        scales: {
+          x: { ticks: { color: "#9aa6b2" } },
+          y: { ticks: { color: "#9aa6b2" } }
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching market cap history:", err);
+  }
+  }
 
   async function fetchBTCdominance() {
   try {
@@ -804,6 +891,7 @@ refreshSelect.addEventListener('change', ()=> {
 
 // initial run
 runAnalysis(false);
+  renderMarketCapHistory();
 
 // expose for debugging
 window._sentiment_debug = {
