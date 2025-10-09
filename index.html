@@ -403,7 +403,7 @@ function deriveSentiment(btcGap, altGaps) {
 
   try {
     // 🟢 Fetch live BTC & global data
-    const res = await fetch("https://api.coingecko.com/api/v3/global");
+    const res = await fetch("/api/btc-dominance");
     const data = await res.json();
 
     const btcDom = data.data.market_cap_percentage.btc;
@@ -522,14 +522,23 @@ function deriveSentiment(btcGap, altGaps) {
       }
     });
 
-    // 🧭 Dynamic Dominance Timeline Table
-    const timelineData = [
-      { year: "2013–2016", btc: "85–95%", alts: "5–15%", note: "BTC was the whole market; alts were tiny (LTC, XRP only)." },
-      { year: "Jan 2018 (Altseason Peak)", btc: "~35–37%", alts: "~63–65%", note: "The closest point in history — Ethereum, XRP, and ICO tokens exploded." },
-      { year: "2021 (DeFi + NFT Mania)", btc: "~39–41%", alts: "~59–61%", note: "ETH, BNB, ADA, SOL, and meme coins rallied — but BTC stayed larger overall." },
-      { year: "2022–2024 Bear Market", btc: "45–55%", alts: "45–55%", note: "BTC regained strength as alts crashed harder." },
-      { year: `2025 (Now)`, btc: `${btcDom.toFixed(2)}%`, alts: `${altDom.toFixed(2)}%`, note: "BTC dominant again — similar setup before alt rotations." }
-    ];
+   // 🧭 Dynamic Dominance Timeline Table
+const currentYear = new Date().getFullYear();
+
+const timelineData = [
+  { year: "2013–2016", btc: "85–95%", alts: "5–15%", note: "BTC was the whole market; alts were tiny (LTC, XRP only)." },
+  { year: "Jan 2018 (Altseason Peak)", btc: "~35–37%", alts: "~63–65%", note: "The closest point in history — Ethereum, XRP, and ICO tokens exploded." },
+  { year: "2021 (DeFi + NFT Mania)", btc: "~39–41%", alts: "~59–61%", note: "ETH, BNB, ADA, SOL, and meme coins rallied — but BTC stayed larger overall." },
+  { year: "2022–2024 Bear Market", btc: "45–55%", alts: "45–55%", note: "BTC regained strength as alts crashed harder." },
+  { 
+    year: `${currentYear} (Now)`, 
+    btc: `${btcDom.toFixed(2)}%`, 
+    alts: `${altDom.toFixed(2)}%`, 
+    note: btcDom > 50 
+      ? "BTC dominant again — similar setup before alt rotations." 
+      : "Altcoins gaining momentum — potential altseason phase forming." 
+  }
+];
 
     const table = `
       <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
