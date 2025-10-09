@@ -95,11 +95,16 @@ button,select{padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,2
   <div id="errorMsg" class="error" style="display:none"></div>
 
     <!-- 🧮 Historical Market Caps -->
-<div class="card">
-  <h3 style="color:#74d0f1;text-align:center;">📊 BTC vs Altcoins Market Cap (7d History)</h3>
-  <canvas id="marketCapChart" height="200"></canvas>
-  <div class="small-note" style="text-align:center;margin-top:6px;">
-    Source: CoinGecko “/global” API — shows daily trend of BTC vs Altcoin capitalization.
+<div class="card bg-black/30 rounded-xl shadow-lg p-4 border border-slate-800">
+  <h3 style="color:#74d0f1;text-align:center;font-size:1.15rem;font-weight:600;margin-bottom:10px;">
+    📊 BTC vs Altcoins Market Cap (7-Day Trend)
+  </h3>
+
+  <canvas id="marketCapChart" height="240"></canvas>
+
+  <div style="text-align:center;margin-top:8px;font-size:0.9rem;color:#9aa6b2;">
+    <span style="color:#f7931a;">🟧 BTC</span> vs 
+    <span style="color:#00bcd4;">🔵 Altcoins</span> — tracked from CoinGecko Global API
   </div>
 </div>
 
@@ -429,36 +434,67 @@ function deriveSentiment(btcGap, altGaps) {
     const altData = dedup.map(x => x.altCap / 1e9);
 
     new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "BTC Market Cap (B$)",
-            data: btcData,
-            borderColor: "#f7931a",
-            fill: false,
-            tension: 0.2
-          },
-          {
-            label: "Altcoins Market Cap (B$)",
-            data: altData,
-            borderColor: "#00bcd4",
-            fill: false,
-            tension: 0.2
-          }
-        ]
+  type: "line",
+  data: {
+    labels,
+    datasets: [
+      {
+        label: "BTC Market Cap (Billions $)",
+        data: btcData,
+        borderColor: "#f7931a",
+        backgroundColor: "rgba(247,147,26,0.15)",
+        borderWidth: 2.2,
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2,
+        pointHoverRadius: 4
       },
-      options: {
-        plugins: {
-          legend: { labels: { color: "#cfeeff" } }
-        },
-        scales: {
-          x: { ticks: { color: "#9aa6b2" } },
-          y: { ticks: { color: "#9aa6b2" } }
-        }
+      {
+        label: "Altcoins Market Cap (Billions $)",
+        data: altData,
+        borderColor: "#00bcd4",
+        backgroundColor: "rgba(0,188,212,0.12)",
+        borderWidth: 2.2,
+        fill: true,
+        tension: 0.25,
+        pointRadius: 2,
+        pointHoverRadius: 4
       }
-    });
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: "top",
+        labels: {
+          color: "#d3e3f3",
+          font: { size: 13 }
+        }
+      },
+      tooltip: {
+        backgroundColor: "#1a1a1a",
+        titleColor: "#fff",
+        bodyColor: "#cfeeff",
+        borderColor: "#333",
+        borderWidth: 1
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: "#a9b8c8", font: { size: 12 } },
+        grid: { color: "rgba(100,100,100,0.1)" }
+      },
+      y: {
+        ticks: {
+          color: "#a9b8c8",
+          callback: v => v.toFixed(0) + "B"
+        },
+        grid: { color: "rgba(100,100,100,0.1)" }
+      }
+    }
+  }
+});
   } catch (err) {
     console.error("Error fetching market cap history:", err);
   }
