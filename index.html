@@ -433,7 +433,7 @@ function deriveSentiment(btcGap, altGaps) {
     const btcData = dedup.map(x => x.btcCap / 1e9); // in billions
     const altData = dedup.map(x => x.altCap / 1e9);
 
-    new Chart(ctx, {
+   new Chart(ctx, {
   type: "line",
   data: {
     labels,
@@ -442,56 +442,93 @@ function deriveSentiment(btcGap, altGaps) {
         label: "BTC Market Cap (Billions $)",
         data: btcData,
         borderColor: "#f7931a",
-        backgroundColor: "rgba(247,147,26,0.15)",
-        borderWidth: 2.2,
+        backgroundColor: "rgba(247,147,26,0.25)",
+        borderWidth: 3,
         fill: true,
-        tension: 0.25,
-        pointRadius: 2,
-        pointHoverRadius: 4
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: "#f7931a",
+        pointHoverBorderColor: "#fff",
+        shadowOffsetX: 0,
+        shadowOffsetY: 2,
+        shadowBlur: 6,
+        shadowColor: "rgba(247,147,26,0.4)"
       },
       {
         label: "Altcoins Market Cap (Billions $)",
         data: altData,
-        borderColor: "#00bcd4",
-        backgroundColor: "rgba(0,188,212,0.12)",
-        borderWidth: 2.2,
+        borderColor: "#00e5ff",
+        backgroundColor: "rgba(0,229,255,0.18)",
+        borderWidth: 3,
         fill: true,
-        tension: 0.25,
-        pointRadius: 2,
-        pointHoverRadius: 4
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: "#00e5ff",
+        pointHoverBorderColor: "#fff",
+        shadowOffsetX: 0,
+        shadowOffsetY: 2,
+        shadowBlur: 6,
+        shadowColor: "rgba(0,229,255,0.4)"
       }
     ]
   },
   options: {
     responsive: true,
+    animation: {
+      duration: 1200,
+      easing: "easeInOutQuart"
+    },
     plugins: {
       legend: {
         position: "top",
         labels: {
-          color: "#d3e3f3",
-          font: { size: 13 }
+          color: "#eaf4ff",
+          font: { size: 14, family: "Inter, sans-serif", weight: "600" },
+          padding: 16,
+          boxWidth: 20
         }
       },
       tooltip: {
-        backgroundColor: "#1a1a1a",
+        backgroundColor: "rgba(10,15,25,0.9)",
         titleColor: "#fff",
-        bodyColor: "#cfeeff",
+        bodyColor: "#d3e9ff",
         borderColor: "#333",
-        borderWidth: 1
+        borderWidth: 1,
+        padding: 12,
+        titleFont: { size: 13, weight: "bold" },
+        bodyFont: { size: 13 }
       }
     },
     scales: {
       x: {
-        ticks: { color: "#a9b8c8", font: { size: 12 } },
-        grid: { color: "rgba(100,100,100,0.1)" }
-      },
-      y: {
+        grid: { color: "rgba(255,255,255,0.05)" },
         ticks: {
           color: "#a9b8c8",
-          callback: v => v.toFixed(0) + "B"
+          font: { size: 12, family: "Inter, sans-serif" },
+          padding: 8
+        }
+      },
+      y: {
+        grid: { color: "rgba(255,255,255,0.07)" },
+        ticks: {
+          color: "#cfe7ff",
+          font: { size: 12, family: "Inter, sans-serif" },
+          callback: v => v.toFixed(0) + "B",
+          padding: 8
         },
-        grid: { color: "rgba(100,100,100,0.1)" }
+        title: {
+          display: true,
+          text: "Market Cap (Billions USD)",
+          color: "#cfe7ff",
+          font: { size: 13, weight: "600" }
+        }
       }
+    },
+    interaction: {
+      mode: "index",
+      intersect: false
     }
   }
 });
