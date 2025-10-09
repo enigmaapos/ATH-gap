@@ -515,6 +515,10 @@ new Chart(ctx, {
     interaction: { mode: "index", intersect: false }
   }
 });
+      } catch (err) {
+    console.error("Error fetching market cap history:", err);
+  }
+  }
         
 
   async function fetchBTCdominance() {
