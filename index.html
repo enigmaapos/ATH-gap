@@ -396,136 +396,130 @@ function deriveSentiment(btcGap, altGaps) {
   const ctx = document.getElementById("marketCapChart");
   if (!ctx) return;
 
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/global");
-    const data = await res.json();
+  // Helper: fetch one day's snapshot from CoinGecko
+  async function getDailyGlobal(dayOffset) {
+    const d = new Date();
+    d.setDate(d.getDate() - dayOffset);
+    const date = d.toISOString().slice(0, 10);
 
-    const btcDom = data.data.market_cap_percentage.btc;
-    const totalMarketCap = data.data.total_market_cap.usd;
+    const res = await fetch(`https://api.coingecko.com/api/v3/global/history?date=${date}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
 
+    const btcDom = json.data.market_cap_percentage.btc;
+    const total = json.data.total_market_cap.usd;
     const altDom = 100 - btcDom;
-    const btcCap = totalMarketCap * (btcDom / 100);
-    const altCap = totalMarketCap * (altDom / 100);
-
-    // keep last 7 days history in localStorage
-    const key = "btc_altcap_history_v1";
-    const history = JSON.parse(localStorage.getItem(key) || "[]");
-
-    history.push({
-      date: new Date().toISOString().slice(0, 10),
-      btcCap,
-      altCap,
+    return {
+      date,
+      btcCap: total * (btcDom / 100),
+      altCap: total * (altDom / 100),
       btcDom,
       altDom
-    });
-
-    // keep last 7 days
-    const dedup = Object.values(
-      history.reduce((acc, h) => {
-        acc[h.date] = h;
-        return acc;
-      }, {})
-    ).slice(-7);
-
-    localStorage.setItem(key, JSON.stringify(dedup));
-
-    const labels = dedup.map(x => x.date);
-    const btcData = dedup.map(x => x.btcCap / 1e9); // in billions
-    const altData = dedup.map(x => x.altCap / 1e9);
-
-   new Chart(ctx, {
-  type: "bar",
-  data: {
-    labels,
-    datasets: [
-      {
-        label: "Altcoins Market Cap (B$)",
-        data: altData,
-        backgroundColor: "rgba(0,188,212,0.55)",
-        borderColor: "#00bcd4",
-        borderWidth: 1.5,
-        borderRadius: 5,
-        barPercentage: 0.55,
-        categoryPercentage: 0.6
-      },
-      {
-        label: "BTC Market Cap (B$)",
-        data: btcData,
-        type: "line",
-        borderColor: "#f7931a",
-        backgroundColor: "rgba(247,147,26,0.15)",
-        borderWidth: 3,
-        tension: 0.35,
-        fill: false,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        pointBackgroundColor: "#f7931a",
-        yAxisID: "y"
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    animation: {
-      duration: 1000,
-      easing: "easeInOutQuart"
-    },
-    plugins: {
-      legend: {
-        position: "top",
-        labels: {
-          color: "#eaf4ff",
-          font: { size: 14, family: "Inter, sans-serif", weight: "600" },
-          padding: 14,
-          boxWidth: 20
-        }
-      },
-      tooltip: {
-        mode: "index",
-        intersect: false,
-        backgroundColor: "rgba(15,20,30,0.95)",
-        titleColor: "#fff",
-        bodyColor: "#cfeeff",
-        borderColor: "#333",
-        borderWidth: 1,
-        padding: 10,
-        titleFont: { size: 13, weight: "bold" },
-        bodyFont: { size: 13 }
-      }
-    },
-    scales: {
-      x: {
-        grid: { color: "rgba(255,255,255,0.05)" },
-        ticks: {
-          color: "#a9b8c8",
-          font: { size: 12, family: "Inter, sans-serif" },
-          padding: 8
-        }
-      },
-      y: {
-        grid: { color: "rgba(255,255,255,0.07)" },
-        ticks: {
-          color: "#cfe7ff",
-          callback: v => v.toFixed(0) + "B",
-          font: { size: 12 },
-          padding: 6
-        },
-        title: {
-          display: true,
-          text: "Market Cap (Billions USD)",
-          color: "#cfe7ff",
-          font: { size: 13, weight: "600" }
-        }
-      }
-    },
-    interaction: {
-      mode: "index",
-      intersect: false
-    }
+    };
   }
-});
+
+  try {
+    // 🕐 Fetch last 7 days (oldest → newest)
+    const history = [];
+    for (let i = 6; i >= 0; i--) {
+      const h = await getDailyGlobal(i);
+      history.push(h);
+      // small delay (CoinGecko free API is rate-limited)
+      await new Promise(r => setTimeout(r, 1200));
+    }
+
+    const labels = history.map(x => x.date);
+    const btcData = history.map(x => x.btcCap / 1e9); // billions
+    const altData = history.map(x => x.altCap / 1e9);
+
+    // 🧮 Create bar + line combo chart
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Altcoins Market Cap (B$)",
+            data: altData,
+            backgroundColor: "rgba(0,188,212,0.55)",
+            borderColor: "#00bcd4",
+            borderWidth: 1.5,
+            borderRadius: 5,
+            barPercentage: 0.55,
+            categoryPercentage: 0.6
+          },
+          {
+            label: "BTC Market Cap (B$)",
+            data: btcData,
+            type: "line",
+            borderColor: "#f7931a",
+            backgroundColor: "rgba(247,147,26,0.15)",
+            borderWidth: 3,
+            tension: 0.35,
+            fill: false,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: "#f7931a",
+            yAxisID: "y"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 1000, easing: "easeInOutQuart" },
+        plugins: {
+          legend: {
+            position: "top",
+            labels: {
+              color: "#eaf4ff",
+              font: { size: 14, family: "Inter, sans-serif", weight: "600" },
+              padding: 14,
+              boxWidth: 20
+            }
+          },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            backgroundColor: "rgba(15,20,30,0.95)",
+            titleColor: "#fff",
+            bodyColor: "#cfeeff",
+            borderColor: "#333",
+            borderWidth: 1,
+            padding: 10,
+            titleFont: { size: 13, weight: "bold" },
+            bodyFont: { size: 13 }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: "rgba(255,255,255,0.05)" },
+            ticks: {
+              color: "#a9b8c8",
+              font: { size: 12, family: "Inter, sans-serif" },
+              padding: 8
+            }
+          },
+          y: {
+            grid: { color: "rgba(255,255,255,0.07)" },
+            ticks: {
+              color: "#cfe7ff",
+              callback: v => v.toFixed(0) + "B",
+              font: { size: 12 },
+              padding: 6
+            },
+            title: {
+              display: true,
+              text: "Market Cap (Billions USD)",
+              color: "#cfe7ff",
+              font: { size: 13, weight: "600" }
+            }
+          }
+        },
+        interaction: { mode: "index", intersect: false }
+      }
+    });
   } catch (err) {
-    console.error("Error fetching market cap history:", err);
+    console.error("Error fetching 7-day market-cap history:", err);
   }
   }
 
