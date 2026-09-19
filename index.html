@@ -47,9 +47,37 @@ const num=v=>Number(v).toFixed(2);
 function setStatus(s){$('status').textContent=s}
 function progress(x){$('progress').style.width=Math.max(0,Math.min(100,x))+'%'}
 function parseKlines(arr){return arr.map(k=>[Number(k[0]),Number(k[1]),Number(k[2]),Number(k[3]),Number(k[4]),Number(k[5]),Number(k[6])]).filter(k=>k.every(Number.isFinite))}
-async function getJson(url){const r=await fetch(url);if(!r.ok)throw new Error('HTTP '+r.status+' from Binance');return r.json()}
-async function getSymbols(n){const ex=await getJson('https://fapi.binance.com/fapi/v1/exchangeInfo');const tick=await getJson('https://fapi.binance.com/fapi/v1/ticker/24hr');const valid=new Set((ex.symbols||[]).filter(x=>x.status==='TRADING'&&x.quoteAsset==='USDT'&&x.contractType==='PERPETUAL').map(x=>x.symbol));return (tick||[]).filter(x=>valid.has(x.symbol)&&Number(x.quoteVolume)>0).sort((a,b)=>Number(b.quoteVolume)-Number(a.quoteVolume)).slice(0,n).map(x=>x.symbol)}
-async function getKlines(sym,limit,delayMs){let out=[],end=null;while(out.length<limit&&!stopped){const take=Math.min(1500,limit-out.length);let url='https://fapi.binance.com/fapi/v1/klines?symbol='+encodeURIComponent(sym)+'&interval=15m&limit='+take;if(end!==null)url+='&endTime='+encodeURIComponent(end);const batch=parseKlines(await getJson(url));if(!batch.length)break;const filtered=end===null?batch:batch.filter(k=>k[0]<end);if(!filtered.length)break;out=filtered.concat(out);end=filtered[0][0]-1;if(out.length<limit)await sleep(delayMs)}return out.slice(-limit)}
+async function getJson(url){
+  const r=await fetch(url,{method:'GET',cache:'no-store'});
+  if(!r.ok){let body='';try{body=await r.text()}catch(e){}throw new Error('Binance HTTP '+r.status+(body?' — '+body.slice(0,160):''));}
+  return r.json();
+}
+async function getSymbols(n){
+  const ex=await getJson('https://fapi.binance.com/fapi/v1/exchangeInfo');
+  const tick=await getJson('https://fapi.binance.com/fapi/v1/ticker/24hr');
+  const valid=new Set((ex.symbols||[]).filter(x=>x.status==='TRADING'&&x.quoteAsset==='USDT'&&x.contractType==='PERPETUAL').map(x=>x.symbol));
+  const arr=(tick||[]).filter(x=>valid.has(x.symbol)&&Number(x.quoteVolume)>0).sort((a,b)=>Number(b.quoteVolume)-Number(a.quoteVolume)).slice(0,n).map(x=>x.symbol);
+  if(!arr.length)throw new Error('No USDT perpetual symbols returned by Binance.');
+  return arr;
+}
+async function getKlines(sym,limit,delayMs){
+  let out=[],end=null,guard=0;
+  while(out.length<limit&&!stopped&&guard++<20){
+    const take=Math.min(1500,limit-out.length);
+    let url='https://fapi.binance.com/fapi/v1/klines?symbol='+encodeURIComponent(sym)+'&interval=15m&limit='+take;
+    if(end!==null)url+='&endTime='+encodeURIComponent(end);
+    const batch=parseKlines(await getJson(url));
+    if(!batch.length)break;
+    const filtered=end===null?batch:batch.filter(k=>Number(k[0])<Number(end));
+    if(!filtered.length)break;
+    out=filtered.concat(out);
+    const oldest=Number(filtered[0][0]);
+    if(!Number.isFinite(oldest))break;
+    end=oldest-1;
+    if(out.length<limit)await sleep(delayMs);
+  }
+  return out.slice(-limit);
+}
 function isEntry(r,mode){const c=r?.code||'';if(mode==='expansion')return c==='EXPANSION_CONFIRMED_UP'||c==='EXPANSION_CONFIRMED_DOWN';if(mode==='confirmed')return c==='BREAKOUT_CONFIRMED_UP'||c==='BREAKDOWN_CONFIRMED_DOWN'||c==='EXPANSION_CONFIRMED_UP'||c==='EXPANSION_CONFIRMED_DOWN';return c&&c!=='NONE'&&c!=='SESSION_START'&&c!=='FORMING'&&c!=='ERROR'&&c!=='INSUFFICIENT'}
 function direction(r){return /_UP/.test(r.code||'')?'UP':/_DOWN/.test(r.code||'')?'DOWN':null}
 function calcTrade(data,i,r,cfg){const dir=direction(r);if(!dir)return null;const entry=data[i][4],fee=cfg.fee*2,tp1=dir==='UP'?entry*(1+cfg.tp1/100):entry*(1-cfg.tp1/100),tp2=dir==='UP'?entry*(1+cfg.tp2/100):entry*(1-cfg.tp2/100),sl=dir==='UP'?entry*(1-cfg.sl/100):entry*(1+cfg.sl/100);let mfe=0,mae=0,tp1hit=false,tp2hit=false,slhit=false,end=data.length-1,result='TIMEOUT',exit=entry,bars=0;for(let j=i+1;j<Math.min(data.length,i+1+cfg.horizon);j++){bars=j-i;const h=data[j][2],l=data[j][3];const fav=dir==='UP'?(h/entry-1)*100:(1-l/entry)*100,adv=dir==='UP'?(l/entry-1)*100:(1-h/entry)*100;mfe=Math.max(mfe,fav);mae=Math.min(mae,adv);const hitTP2=dir==='UP'?h>=tp2:l<=tp2,hitTP1=dir==='UP'?h>=tp1:l<=tp1,hitSL=dir==='UP'?l<=sl:h>=sl;if(hitSL){slhit=true;result='FAIL';exit=sl;end=j;break}if(hitTP2){tp2hit=true;tp1hit=true;result='TP2';exit=tp2;end=j;break}if(hitTP1)tp1hit=true}if(result==='TIMEOUT')exit=data[Math.min(data.length-1,i+cfg.horizon)][4];let gross=dir==='UP'?(exit/entry-1)*100:(1-exit/entry)*100;let pl=gross-fee;if(result==='TP2')pl=cfg.tp2-fee;else if(result==='TP1')pl=cfg.tp1-fee;else if(result==='FAIL')pl=-cfg.sl-fee;return {coin:'',time:data[i][6],direction:dir,state:r.code,entry,tp1,tp2,sl,result,pl,mfe,mae,bars,fee,tp1hit,tp2hit,slhit,index:i}}
@@ -59,9 +87,50 @@ function renderStatsTable(id,groups){const body=$(id);body.innerHTML='';for(cons
 function render(trades,coinsCount,totalCandles){const s=stats(trades),win=(s.tp1+s.tp2)/Math.max(1,s.n)*100;$('coins').textContent=coinsCount;$('candles').textContent=totalCandles.toLocaleString();$('trades').textContent=s.n;$('tp2wins').textContent=s.tp2;$('tp1wins').textContent=s.tp1;$('fails').textContent=s.fail;$('timeouts').textContent=s.timeout;$('winrate').textContent=pct(win);$('net').textContent=pct(s.net);$('avg').textContent=pct(s.avg);$('dd').textContent=pct(s.dd);$('mfe').textContent=pct(s.mfe);$('mae').textContent=pct(s.mae);$('tp1rate').textContent=pct((s.tp1+s.tp2)/Math.max(1,s.n)*100);$('tp2rate').textContent=pct(s.tp2/Math.max(1,s.n)*100);$('slrate').textContent=pct(s.fail/Math.max(1,s.n)*100);$('timerate').textContent=pct(s.timeout/Math.max(1,s.n)*100);$('pf').textContent=Number.isFinite(s.pf)?s.pf.toFixed(2):'∞';$('gp').textContent=pct(s.gp);$('gl').textContent=pct(s.gl);$('expectancy').textContent=pct(s.expectancy);$('payoff').textContent=s.payoff.toFixed(2);renderStatsTable('stateRows',groupStats(trades,'state'));renderStatsTable('dirRows',groupStats(trades,'direction'));renderStatsTable('coinRows',groupStats(trades,'coin'));const body=$('tradeRows');body.innerHTML='';for(const t of trades){const tr=document.createElement('tr');tr.innerHTML='<td>'+t.coin+'</td><td>'+new Date(t.time).toLocaleString()+'</td><td class="'+(t.direction==='UP'?'up':'down')+'">'+t.direction+'</td><td>'+t.state+'</td><td>'+t.entry+'</td><td>'+t.tp1+'</td><td>'+t.tp2+'</td><td>'+t.sl+'</td><td class="'+(t.result==='FAIL'?'down':t.result==='TIMEOUT'?'warn':'up')+'">'+t.result+'</td><td class="'+(t.pl>=0?'up':'down')+'">'+pct(t.pl)+'</td><td>'+pct(t.mfe)+'</td><td>'+pct(t.mae)+'</td><td>'+t.bars+'</td>';body.appendChild(tr)}renderMatrix(trades)}
 function simulateOutcome(data,i,r,tp1,tp2,sl,horizon,fee){return calcTrade(data,i,r,{tp1,tp2,sl,horizon,fee})}
 function renderMatrix(baseTrades){const tpVals=[0.5,1,1.5,2,3,5],slVals=[0.5,0.75,1,1.5,2];const body=$('matrixRows');body.innerHTML='';for(const sl of slVals)for(const tp of tpVals){if(tp<=0||sl<=0)continue;const arr=[];for(const coin of Object.keys(datasets)){const data=datasets[coin];for(let i=30;i<data.length;i+=currentCfg.step){const r=calculateBoxBaseFound({symbol:coin,k15m:data.slice(0,i+1),closeNow:data[i][4],__backtestNow:data[i][6]});if(!isEntry(r,currentCfg.mode))continue;const t=simulateOutcome(data,i,r,tp,Math.max(tp+0.01,tp*2),sl,currentCfg.horizon,currentCfg.fee);if(t){t.coin=coin;arr.push(t)}}}const s=stats(arr),win=(s.tp1+s.tp2)/Math.max(1,s.n)*100;const tr=document.createElement('tr');tr.innerHTML='<td>'+tp.toFixed(2)+'%</td><td>'+sl.toFixed(2)+'%</td><td>'+s.n+'</td><td>'+pct(win)+'</td><td>'+pct(s.tp2/Math.max(1,s.n)*100)+'</td><td>'+pct(s.fail/Math.max(1,s.n)*100)+'</td><td class="'+(s.net>=0?'up':'down')+'">'+pct(s.net)+'</td><td>'+pct(s.avg)+'</td><td>'+((Number.isFinite(s.pf))?s.pf.toFixed(2):'∞')+'</td><td>'+pct(s.dd)+'</td><td>'+pct(s.mfe)+'</td><td>'+pct(s.mae)+'</td>';body.appendChild(tr)}}
-async function testCoin(coin,data,cfg){let trades=[],active=[];for(let i=30;i<data.length;i+=cfg.step){if(stopped)break;active=active.filter(t=>i-t.index<cfg.horizon);const r=calculateBoxBaseFound({symbol:coin,k15m:data.slice(0,i+1),closeNow:data[i][4],__backtestNow:data[i][6]});if(!isEntry(r,cfg.mode))continue;if(active.length>=cfg.concurrent)continue;const t=calcTrade(data,i,r,cfg);if(t){t.coin=coin;trades.push(t);active.push(t)}}return trades}
+async function testCoin(coin,data,cfg){
+  const trades=[];let active=[];const seen=new Set();
+  for(let i=30;i<data.length;i+=cfg.step){
+    if(stopped)break;
+    active=active.filter(t=>i-t.index<cfg.horizon);
+    const r=calculateBoxBaseFound({symbol:coin,k15m:data.slice(0,i+1),closeNow:data[i][4],__backtestNow:data[i][6]});
+    if(!isEntry(r,cfg.mode))continue;
+    const session=r.meta?.sessionStart||'';
+    const bx=r.box||{};
+    const signalIndex=r.breakout?.index;
+    const key=[session,r.code,bx.startIndex,bx.endIndex,signalIndex].join('|');
+    if(seen.has(key))continue;
+    seen.add(key);
+    if(active.length>=cfg.concurrent)continue;
+    const t=calcTrade(data,i,r,cfg);
+    if(t){t.coin=coin;trades.push(t);active.push(t)}
+  }
+  return trades;
+}
 let currentCfg={};
-async function runAll(){stopped=false;allTrades=[];datasets={};$('run').disabled=true;progress(0);const n=Math.min(30,Math.max(1,Number($('coinCount').value)||30)),limit=Math.min(10000,Math.max(300,Number($('limit').value)||3000));currentCfg={step:Math.max(1,Number($('step').value)||1),mode:$('entryMode').value,tp1:Math.abs(Number($('tp1').value)||1),tp2:Math.abs(Number($('tp2').value)||2),sl:Math.abs(Number($('sl').value)||1),horizon:Math.max(1,Number($('horizon').value)||96),fee:Math.max(0,Number($('fee').value)||0.04),concurrent:Math.max(1,Number($('concurrent').value)||1)};if(currentCfg.tp2<=currentCfg.tp1){setStatus('TP2 must be greater than TP1.');$('run').disabled=false;return}try{const coins=await getSymbols(n);let total=0;for(let ci=0;ci<coins.length;ci++){if(stopped)break;const coin=coins[ci];setStatus('Downloading '+coin+' ('+(ci+1)+'/'+coins.length+')…');const data=await getKlines(coin,limit,Math.max(150,Number($('delay').value)||250));if(!data.length)continue;datasets[coin]=data;total+=data.length;setStatus('Testing '+coin+' ('+(ci+1)+'/'+coins.length+') — '+data.length.toLocaleString()+' candles…');const ts=await testCoin(coin,data,currentCfg);allTrades.push(...ts);render(allTrades,ci+1,total);progress((ci+1)/coins.length*100);await sleep(50)}setStatus(stopped?'Stopped by user.':'Finished '+Object.keys(datasets).length+' coins. '+allTrades.length+' trades evaluated across '+Object.values(datasets).reduce((a,d)=>a+d.length,0).toLocaleString()+' candles.')}catch(e){setStatus('Error: '+e.message)}finally{$('run').disabled=false}}
+async function runAll(){
+  stopped=false;allTrades=[];datasets={};$('run').disabled=true;progress(0);$('diagnostic').textContent='';
+  const n=Math.min(30,Math.max(1,Number($('coinCount').value)||30)),limit=Math.min(10000,Math.max(300,Number($('limit').value)||3000));
+  currentCfg={step:Math.max(1,Number($('step').value)||1),mode:$('entryMode').value,tp1:Math.abs(Number($('tp1').value)||1),tp2:Math.abs(Number($('tp2').value)||2),sl:Math.abs(Number($('sl').value)||1),horizon:Math.max(1,Number($('horizon').value)||96),fee:Math.max(0,Number($('fee').value)||0.04),concurrent:Math.max(1,Number($('concurrent').value)||1)};
+  if(currentCfg.tp2<=currentCfg.tp1){setStatus('TP2 must be greater than TP1.');$('run').disabled=false;return}
+  try{
+    setStatus('Connecting to Binance Futures…');
+    const coins=await getSymbols(n);$('diagnostic').textContent='Selected '+coins.length+' symbols: '+coins.join(', ');
+    let total=0;
+    for(let ci=0;ci<coins.length;ci++){
+      if(stopped)break;const coin=coins[ci];
+      setStatus('Downloading '+coin+' ('+(ci+1)+'/'+coins.length+')…');
+      const data=await getKlines(coin,limit,Math.max(150,Number($('delay').value)||250));
+      if(!data.length){$('diagnostic').textContent+='\n'+coin+': no candles returned.';continue;}
+      datasets[coin]=data;total+=data.length;
+      setStatus('Testing '+coin+' ('+(ci+1)+'/'+coins.length+') — '+data.length.toLocaleString()+' candles…');
+      const ts=await testCoin(coin,data,currentCfg);allTrades.push(...ts);
+      render(allTrades,ci+1,total);progress((ci+1)/coins.length*100);await sleep(50);
+    }
+    setStatus(stopped?'Stopped by user.':'Finished '+Object.keys(datasets).length+' coins. '+allTrades.length+' trades evaluated across '+Object.values(datasets).reduce((a,d)=>a+d.length,0).toLocaleString()+' candles.');
+  }catch(e){
+    console.error(e);setStatus('ERROR: '+e.message);$('diagnostic').textContent='If you opened this HTML directly from your phone/browser and Binance is blocked, use the CSV mode in the next version or serve this file from a local web server. Error details: '+e.message;
+  }finally{$('run').disabled=false}
+}
 function csvEscape(v){const s=String(v??'');return '"'+s.replaceAll('"','""')+'"'}
 function exportCSV(){if(!allTrades.length){setStatus('No trades to export yet.');return}const head=['coin','time','direction','state','entry','tp1','tp2','sl','result','pl_pct','mfe_pct','mae_pct','bars'];const lines=[head.join(',')];for(const t of allTrades)lines.push([t.coin,new Date(t.time).toISOString(),t.direction,t.state,t.entry,t.tp1,t.tp2,t.sl,t.result,t.pl,t.mfe,t.mae,t.bars].map(csvEscape).join(','));const blob=new Blob([lines.join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='box-base-backtest-trades.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function syntheticSymbols(){return ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','DOGEUSDT']}
