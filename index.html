@@ -146,23 +146,41 @@ function analyze(sym,c){
     if(Number.isFinite(y)&&c[i].l<=y&&c[i].h>=y)times.push(c[i].t);
   }
 
-  // Use the latest CLOSED candle for the current EMA values.
-  let li=c.length-1;
-  while(li>=0 && c[li].ct>Date.now())li--;
-  const last=c[li];
+  // Use the latest CLOSED candle for the current EMA values.\1    // Latest confirmed CLOSED candle.
+    let now=Date.now();
+    while(li>=0 && c[li].ct>now)li--;
 
-  return {
-    symbol:sym,
-    cross,
-    crossT,
-    ema70:li>=0?e70[li]:NaN,
-    ema200:li>=0?e200[li]:NaN,
-    touch:times.length>0,
-    times,
-    price:li>=0?last.c:NaN,
-    updated:Date.now()
-  };
-}
+    const last=li>=0?c[li]:null;
+    const latestE70=li>=0?e70[li]:NaN;
+    const latestE200=li>=0?e200[li]:NaN;
+
+    // Current EMA state is based only on the latest CLOSED candle.
+    // This is separate from the confirmed cross detected above.
+    let currentState='NONE';
+    if(Number.isFinite(latestE70) && Number.isFinite(latestE200)){
+      if(latestE70>latestE200)currentState='BULLISH';
+      else if(latestE70<latestE200)currentState='BEARISH';
+    }
+
+    const closedT=last?last.ct:null;
+
+    return {
+      symbol:sym,
+      // Preserve the original field used by the scanner counters.
+      cross,
+      // Fields consumed by the table, filters, sorting and CSV export.
+      currentState,
+      lastCross:cross,
+      crossT,
+      closedT,
+      ema70:latestE70,
+      ema200:latestE200,
+      touch:times.length>0,
+      times,
+      price:last?last.c:NaN,
+      updated:now
+    };
+  }
 function setStatus(x){$('status').textContent=x}
 function resetStats(total){stats={scanned:0,bull:0,bear:0,touch:0,errors:0,total,weight:stats.weight};updateStats()}
 function updateStats(){$('total').textContent=stats.total;$('scanned').textContent=stats.scanned;$('bull').textContent=stats.bull;$('bear').textContent=stats.bear;$('touch').textContent=stats.touch;$('errors').textContent=stats.errors;$('weight').textContent=stats.weight??'—';$('bar').style.width=(stats.total?Math.min(100,stats.scanned/stats.total*100):0)+'%'}
@@ -178,7 +196,7 @@ arr.sort((a,b)=>{
  if(sort==='touchnew') return ((b.times.at(-1)||0)-(a.times.at(-1)||0))||a.symbol.localeCompare(b.symbol);
  if(sort==='crossold') return (a.crossT||Infinity)-(b.crossT||Infinity)||a.symbol.localeCompare(b.symbol);
  return (b.crossT||0)-(a.crossT||0)||a.symbol.localeCompare(b.symbol);
-});$('resultsBody').innerHTML=arr.length?arr.map(r=>`<tr><td><b>${r.symbol}</b></td><td class="${r.currentState==='BULLISH'?'bull':r.currentState==='BEARISH'?'bear':''}">${r.currentState}</td><td class="${r.lastCross==='BULLISH'?'bull':r.lastCross==='BEARISH'?'bear':''}">${r.lastCross}</td><td>${r.crossT?ph(r.crossT):'—'}</td><td>${Number.isFinite(r.ema70)?r.ema70.toPrecision(10):'—'}</td><td>${Number.isFinite(r.ema200)?r.ema200.toPrecision(10):'—'}</td><td class="${r.touch?'touch':''}">${r.touch?'YES':'NO'}</td><td>${r.times.length?r.times.map(ph).join(', '):'—'}</td><td>${r.price.toPrecision(10)}</td><td><span class="badge">CLOSED ${r.closedT?ph(r.closedT):''}</span></td></tr>`).join(''):'<tr><td colspan="10" class="empty">No matching results.</td></tr>'}
+});$('resultsBody').innerHTML=arr.length?arr.map(r=>`<tr><td><b>${r.symbol}</b></td><td class="${r.currentState==='BULLISH'?'bull':r.currentState==='BEARISH'?'bear':''}">${r.currentState||'NONE'}</td><td class="${r.lastCross==='BULLISH'?'bull':r.lastCross==='BEARISH'?'bear':''}">${r.lastCross||'NONE'}</td><td>${r.crossT?ph(r.crossT):'—'}</td><td>${Number.isFinite(r.ema70)?r.ema70.toPrecision(10):'—'}</td><td>${Number.isFinite(r.ema200)?r.ema200.toPrecision(10):'—'}</td><td class="${r.touch?'touch':''}">${r.touch?'YES':'NO'}</td><td>${r.times.length?r.times.map(ph).join(', '):'—'}</td><td>${r.price.toPrecision(10)}</td><td><span class="badge">CLOSED ${r.closedT?ph(r.closedT):''}</span></td></tr>`).join(''):'<tr><td colspan="10" class="empty">No matching results.</td></tr>'}
 function csv(){const arr=[...results.values()];if(!arr.length)return;const rows=[['Symbol','CurrentEMAState','LastConfirmedCross','CrossTimePH','EMA70','EMA200','EMA200Touched','TouchTimesPH','Price','LastClosedCandlePH']];arr.forEach(r=>rows.push([r.symbol,r.currentState,r.lastCross,r.crossT?ph(r.crossT):'',r.ema70,r.ema200,r.touch?'YES':'NO',r.times.map(ph).join(' | '),r.price,r.closedT?ph(r.closedT):'']));const esc=v=>'"'+String(v??'').replaceAll('"','""')+'"';const blob=new Blob([rows.map(x=>x.map(esc).join(',')).join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ema-cross-ema200-touch-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href)}
 $('start').onclick=scan;$('stop').onclick=stop;$('csv').onclick=csv;$('clear').onclick=()=>{results.clear();resetStats(symbols.length);render()};['search','show','sort'].forEach(id=>$(id).addEventListener('input',render));$('interval').addEventListener('change',()=>{if(refreshTimer)clearTimeout(refreshTimer);$('next').textContent='—'});setInterval(()=>$('clock').textContent=ph(Date.now())+' PH',1000);
 </script>
