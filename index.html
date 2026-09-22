@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EMA Cross + EMA200 Touch Scanner</title>
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#0b1020;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:20px}
+  .card{background:#121a2b;border:1px solid #26324a;border-radius:14px;padding:16px;margin-bottom:14px}
+  h1{font-size:22px;margin:0 0 8px}.muted{color:#94a3b8;font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#aeb9cc}
+  input,select,button{background:#0d1424;color:#eef2ff;border:1px solid #334155;border-radius:8px;padding:9px 10px}
+  button{cursor:pointer;font-weight:600}button:hover{background:#17223a}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .metric{background:#0d1424;border:1px solid #26324a;border-radius:10px;padding:12px}
+  .metric .v{font-size:19px;font-weight:700;margin-top:5px}
+  .bull{color:#4ade80}.bear{color:#f87171}.yes{color:#facc15}.none{color:#94a3b8}
+  table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #26324a;text-align:left}
+  .status{margin-top:10px;font-size:13px}.error{color:#fb7185}
+  .small{font-size:12px;color:#94a3b8;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>EMA70 / EMA200 Cross + EMA200 Touch</h1>
+    <div class="muted">Standalone version using only the cross and EMA200-touch calculations from the supplied scanner.</div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>Symbol
+        <input id="symbol" value="BTCUSDT" autocomplete="off">
+      </label>
+      <label>Interval
+        <select id="interval">
+          <option value="15m" selected>15m</option>
+          <option value="5m">5m</option>
+          <option value="1h">1h</option>
+          <option value="4h">4h</option>
+        </select>
+      </label>
+      <label>Candles
+        <select id="limit">
+          <option value="500">500</option>
+          <option value="1000" selected>1000</option>
+          <option value="1500">1500</option>
+        </select>
+      </label>
+      <button id="scan">Scan</button>
+    </div>
+    <div id="status" class="status">Ready.</div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="metric"><div class="muted">Latest session cross</div><div id="cross" class="v none">—</div></div>
+      <div class="metric"><div class="muted">Cross time</div><div id="crossTime" class="v">—</div></div>
+      <div class="metric"><div class="muted">EMA200 touched</div><div id="touch" class="v none">—</div></div>
+      <div class="metric"><div class="muted">Current EMA70 / EMA200</div><div id="emas" class="v">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Calculation used</h3>
+    <div class="small">
+      <b>Cross:</b> exact EMA70/EMA200 crossing: previous EMA70 ≤ previous EMA200 and current EMA70 &gt; current EMA200 = bullish;
+      previous EMA70 ≥ previous EMA200 and current EMA70 &lt; current EMA200 = bearish.
+      Only crosses whose current candle starts inside the current 08:00–08:00 Philippines session are counted.
+      The newest qualifying cross wins. If none occurs, result is NONE.<br><br>
+      <b>EMA200 touch:</b> for every completed candle in the current 08:00–08:00 Philippines session,
+      EMA200 is calculated for that exact candle. A touch is true only when
+      <code>low ≤ candle EMA200 ≤ high</code>. This does not use the latest EMA200 for all candles and does not use a proximity percentage.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Recent qualifying cross checks</h3>
+    <table>
+      <thead><tr><th>Time (PH)</th><th>Direction</th><th>EMA70</th><th>EMA200</th><th>Close</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="5" class="muted">No scan yet.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function calculateEMA(data, period) {
+  const k = 2 / (period + 1);
+  const ema = [];
+  let previousEma = null;
+  for (let i = 0; i < data.length; i++) {
+    if (i < period - 1) { ema.push(NaN); continue; }
+    if (i === period - 1) {
+      previousEma = data.slice(0, period).reduce((s,v)=>s+v,0) / period;
+    }
+    const current = data[i] * k + previousEma * (1-k);
+    ema.push(current);
+    previousEma = current;
+  }
+  return ema;
+}
+
+// Exact same session convention as the supplied scanner:
+// 08:00 PH inclusive -> next day 08:00 PH exclusive.
+// Binance timestamps are UTC, so PH boundaries are UTC-8.
+function getCurrentPHSession(nowMs = Date.now()) {
+  const d = new Date(nowMs);
+  const ph = new Date(d.getTime() + 8*60*60*1000);
+  const y = ph.getUTCFullYear(), m = ph.getUTCMonth(), day = ph.getUTCDate();
+  const sessionStartPH = Date.UTC(y,m,day,8,0,0);
+  let start = sessionStartPH - 8*60*60*1000;
+  if (nowMs < start) start -= 24*60*60*1000;
+  return {start, end:start + 24*60*60*1000};
+}
+
+function phString(ms) {
+  return new Intl.DateTimeFormat('en-PH',{
+    timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+  }).format(new Date(ms));
+}
+
+function detectLatestSessionCross(candles, ema70, ema200, start, end) {
+  let latest = {direction:'none', timestamp:null, index:null};
+  for (let i=1;i<candles.length;i++) {
+    const ts = candles[i].timestamp;
+    if (!Number.isFinite(ts) || ts < start || ts >= end) continue;
+    const p70=ema70[i-1], p200=ema200[i-1], c70=ema70[i], c200=ema200[i];
+    if (![p70,p200,c70,c200].every(Number.isFinite)) continue;
+    if (p70 <= p200 && c70 > c200) latest={direction:'bullish',timestamp:ts,index:i};
+    else if (p70 >= p200 && c70 < c200) latest={direction:'bearish',timestamp:ts,index:i};
+  }
+  return latest;
+}
+
+async function fetchKlines(symbol, interval, limit) {
+  const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=${limit}`;
+  const r = await fetch(url, {cache:'no-store'});
+  if (!r.ok) throw new Error(`Binance HTTP ${r.status}`);
+  const data = await r.json();
+  if (!Array.isArray(data)) throw new Error(data.msg || 'Invalid Binance response');
+  return data.map(c=>({
+    timestamp:+c[0], open:+c[1], high:+c[2], low:+c[3], close:+c[4],
+    closeTime:+c[6]
+  }));
+}
+
+async function scan() {
+  const symbol = $('symbol').value.trim().toUpperCase();
+  const interval = $('interval').value;
+  const limit = +$('limit').value;
+  if (!/^[A-Z0-9]+$/.test(symbol)) { $('status').innerHTML='<span class="error">Invalid symbol.</span>'; return; }
+
+  $('status').textContent='Fetching Binance Futures candles…';
+  $('scan').disabled=true;
+  try {
+    const candles = await fetchKlines(symbol, interval, limit);
+    const closes = candles.map(c=>c.close);
+    const ema70 = calculateEMA(closes,70);
+    const ema200 = calculateEMA(closes,200);
+
+    const {start,end}=getCurrentPHSession();
+    const completed = candles.filter(c=>c.timestamp>=start && c.timestamp<end && c.closeTime<=Date.now());
+
+    const cross = detectLatestSessionCross(candles,ema70,ema200,start,end);
+
+    // Exact supplied-file EMA200-touch calculation, with the same candle-specific EMA200.
+    const touched = completed.some(c=>{
+      const i=candles.indexOf(c);
+      const e=ema200[i];
+      return Number.isFinite(e) && c.low <= e && c.high >= e;
+    });
+
+    const last = candles[candles.length-1];
+    $('cross').textContent = cross.direction==='none' ? 'NONE' : cross.direction.toUpperCase();
+    $('cross').className = 'v ' + (cross.direction==='bullish'?'bull':cross.direction==='bearish'?'bear':'none');
+    $('crossTime').textContent = cross.timestamp ? phString(cross.timestamp) : '—';
+    $('touch').textContent = touched ? 'YES' : 'NO';
+    $('touch').className = 'v ' + (touched?'yes':'none');
+    $('emas').textContent = `${ema70.at(-1).toPrecision(10)} / ${ema200.at(-1).toPrecision(10)}`;
+
+    const candidates=[];
+    for(let i=1;i<candles.length;i++){
+      const ts=candles[i].timestamp;
+      if(ts<start || ts>=end) continue;
+      const p70=ema70[i-1],p200=ema200[i-1],c70=ema70[i],c200=ema200[i];
+      if(![p70,p200,c70,c200].every(Number.isFinite)) continue;
+      let dir=null;
+      if(p70<=p200 && c70>c200) dir='BULLISH';
+      else if(p70>=p200 && c70<c200) dir='BEARISH';
+      if(dir) candidates.push({ts,dir,e70:c70,e200:c200,close:candles[i].close});
+    }
+    $('rows').innerHTML = candidates.slice(-10).reverse().map(x=>
+      `<tr><td>${phString(x.ts)}</td><td class="${x.dir==='BULLISH'?'bull':'bear'}">${x.dir}</td><td>${x.e70.toPrecision(10)}</td><td>${x.e200.toPrecision(10)}</td><td>${x.close.toPrecision(10)}</td></tr>`
+    ).join('') || '<tr><td colspan="5" class="muted">No bullish/bearish EMA70/EMA200 cross in the current session.</td></tr>';
+
+    $('status').textContent=`Done • ${symbol} • ${interval} • ${completed.length} completed candles in current PH session`;
+  } catch(e) {
+    $('status').innerHTML=`<span class="error">${e.message || e}</span>`;
+  } finally {
+    $('scan').disabled=false;
+  }
+}
+$('scan').addEventListener('click',scan);
+$('symbol').addEventListener('keydown',e=>{if(e.key==='Enter')scan();});
+</script>
+</body>
+</html>
