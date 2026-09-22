@@ -146,41 +146,43 @@ function analyze(sym,c){
     if(Number.isFinite(y)&&c[i].l<=y&&c[i].h>=y)times.push(c[i].t);
   }
 
-  // Use the latest CLOSED candle for the current EMA values.\1    // Latest confirmed CLOSED candle.
-    let now=Date.now();
-    while(li>=0 && c[li].ct>now)li--;
+  // Use the latest CLOSED candle for the current EMA values.
+  let li=c.length-1;
+  const now=Date.now();
+  while(li>=0 && c[li].ct>now)li--;
 
-    const last=li>=0?c[li]:null;
-    const latestE70=li>=0?e70[li]:NaN;
-    const latestE200=li>=0?e200[li]:NaN;
+  const last=li>=0?c[li]:null;
+  const latestE70=li>=0?e70[li]:NaN;
+  const latestE200=li>=0?e200[li]:NaN;
 
-    // Current EMA state is based only on the latest CLOSED candle.
-    // This is separate from the confirmed cross detected above.
-    let currentState='NONE';
-    if(Number.isFinite(latestE70) && Number.isFinite(latestE200)){
-      if(latestE70>latestE200)currentState='BULLISH';
-      else if(latestE70<latestE200)currentState='BEARISH';
-    }
-
-    const closedT=last?last.ct:null;
-
-    return {
-      symbol:sym,
-      // Preserve the original field used by the scanner counters.
-      cross,
-      // Fields consumed by the table, filters, sorting and CSV export.
-      currentState,
-      lastCross:cross,
-      crossT,
-      closedT,
-      ema70:latestE70,
-      ema200:latestE200,
-      touch:times.length>0,
-      times,
-      price:last?last.c:NaN,
-      updated:now
-    };
+  // Current EMA state is based only on the latest CLOSED candle.
+  // This is separate from the confirmed cross detected above.
+  let currentState='NONE';
+  if(Number.isFinite(latestE70) && Number.isFinite(latestE200)){
+    if(latestE70>latestE200)currentState='BULLISH';
+    else if(latestE70<latestE200)currentState='BEARISH';
   }
+
+  const closedT=last?last.ct:null;
+
+  return {
+    symbol:sym,
+    // Preserve the original field used by the scanner counters.
+    cross,
+    // Fields consumed by the table, filters, sorting and CSV export.
+    currentState,
+    lastCross:cross,
+    crossT,
+    closedT,
+    ema70:latestE70,
+    ema200:latestE200,
+    touch:times.length>0,
+    times,
+    price:last?last.c:NaN,
+    updated:now
+  };
+}
+
 function setStatus(x){$('status').textContent=x}
 function resetStats(total){stats={scanned:0,bull:0,bear:0,touch:0,errors:0,total,weight:stats.weight};updateStats()}
 function updateStats(){$('total').textContent=stats.total;$('scanned').textContent=stats.scanned;$('bull').textContent=stats.bull;$('bear').textContent=stats.bear;$('touch').textContent=stats.touch;$('errors').textContent=stats.errors;$('weight').textContent=stats.weight??'—';$('bar').style.width=(stats.total?Math.min(100,stats.scanned/stats.total*100):0)+'%'}
