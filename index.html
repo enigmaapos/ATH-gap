@@ -43,7 +43,7 @@
   <label>Sort<select id="sort"><option value="symbol">Symbol</option><option value="cross" selected>Cross newest → oldest</option><option value="crossold">Cross oldest → newest</option><option value="touch">Touch first</option><option value="touchnew">Touch newest → oldest</option></select></label>
   <button id="clear">Clear results</button>
  </div>
- <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Symbol</th><th>Cross</th><th>Cross time (PH)</th><th>EMA70</th><th>EMA200</th><th>EMA200 touch</th><th>Touch time(s)</th><th>Price</th><th>State</th></tr></thead><tbody id="body"><tr><td colspan="9" class="empty">No scan yet.</td></tr></tbody></table></div>
+ <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Symbol</th><th>Cross</th><th>Cross time (PH)</th><th>EMA70</th><th>EMA200</th><th>EMA200 touch</th><th>Touch time(s)</th><th>Price</th><th>State</th></tr></thead><tbody id="resultsBody"><tr><td colspan="9" class="empty">No scan yet.</td></tr></tbody></table></div>
 </div>
 <div class="card note">
  <b>Calculation:</b> EMA70 and EMA200 are standard recursive EMAs seeded with the SMA of the first period. Bullish cross = previous EMA70 ≤ previous EMA200 and current EMA70 &gt; current EMA200. Bearish cross = previous EMA70 ≥ previous EMA200 and current EMA70 &lt; current EMA200. EMA200 touch = a completed candle whose low ≤ that candle's EMA200 ≤ high. Only the current 08:00–08:00 Asia/Manila session is used for the displayed cross/touch result. The scanner excludes non-trading, non-USDT, and non-PERPETUAL contracts from Binance USDⓈ-M exchangeInfo.
@@ -77,50 +77,51 @@ function session(){const now=Date.now(),ph=new Date(now+8*3600000);let s=Date.UT
 function ph(ms){return new Intl.DateTimeFormat('en-PH',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(ms))}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 async function fetchJSON(url,attempt=0){
- if(stopRequested) throw new Error('Stopped');
- return queueRequest(async()=>{
-  await rateGate();
-  try{
-   const r=await fetch(url,{cache:'no-store'});
-   requestCount++;
-   const used=r.headers.get('x-mbx-used-weight-1m')||r.headers.get('x-mbx-used-weight-1M');
-   if(used){stats.weight=+used;$('weight').textContent=stats.weight}
-   if(stats.weight>=SAFETY.maxUsedWeight){
-     ratePauseUntil=Date.now()+60000;
-     setStatus(`Binance weight ${stats.weight}. Safety pause 60s…`);
-     await throttle(60000);
-   } else if(stats.weight>=SAFETY.softUsedWeight){
-     ratePauseUntil=Date.now()+5000;
-     await throttle(5000);
-   }
-   if(r.status===429||r.status===418){
-     const ra=+(r.headers.get('retry-after')||0);
-     const wait=Math.min(Math.max(ra*1000,SAFETY.rateCooldown),180000);
-     ratePauseUntil=Date.now()+wait;
-     setStatus(`Binance rate-limit ${r.status}. Safety backoff ${Math.ceil(wait/1000)}s…`);
-     await throttle(wait);
-     if(attempt<5)return fetchJSON(url,attempt+1);
-     throw new Error(`Binance ${r.status}`);
-   }
-   if(!r.ok){
-     if(attempt<3){await throttle(1000*(attempt+1));return fetchJSON(url,attempt+1)}
-     throw new Error(`HTTP ${r.status}`)
-   }
-   return await r.json();
-  }catch(e){
-   if(stopRequested)throw e;
-   if(attempt<3){await throttle(Math.min(2000*(2**attempt),15000));return fetchJSON(url,attempt+1)}
-   throw e;
-  }
- });
+  if(stopRequested) throw new Error('Stopped');
+  return queueRequest(async()=>{
+    await rateGate();
+    try{
+      const r=await fetch(url,{cache:'no-store'});
+      requestCount++;
+      const used=r.headers.get('x-mbx-used-weight-1m')||r.headers.get('x-mbx-used-weight-1M');
+      if(used){stats.weight=+used;$('weight').textContent=stats.weight}
+      if(stats.weight>=SAFETY.maxUsedWeight){
+        ratePauseUntil=Date.now()+60000;
+        setStatus(`Binance weight ${stats.weight}. Safety pause 60s…`);
+        await throttle(60000);
+      } else if(stats.weight>=SAFETY.softUsedWeight){
+        ratePauseUntil=Date.now()+5000;
+        await throttle(5000);
+      }
+      if(r.status===429||r.status===418){
+        const ra=+(r.headers.get('retry-after')||0);
+        const wait=Math.min(Math.max(ra*1000,SAFETY.rateCooldown),180000);
+        ratePauseUntil=Date.now()+wait;
+        setStatus(`Binance rate-limit ${r.status}. Safety backoff ${Math.ceil(wait/1000)}s…`);
+        await throttle(wait);
+        if(attempt<5)return fetchJSON(url,attempt+1);
+        throw new Error(`Binance ${r.status}`);
+      }
+      if(!r.ok){
+        if(attempt<3){await throttle(1000*(attempt+1));return fetchJSON(url,attempt+1)}
+        throw new Error(`HTTP ${r.status}`)
+      }
+      return await r.json();
+    }catch(e){
+      if(stopRequested)throw e;
+      if(attempt<3){await throttle(Math.min(2000*(2**attempt),15000));return fetchJSON(url,attempt+1)}
+      throw e;
+    }
+  });
 }
+
 async function loadSymbols(){const d=await fetchJSON(API+'/fapi/v1/exchangeInfo');return d.symbols.filter(s=>s.status==='TRADING'&&s.quoteAsset==='USDT'&&s.contractType==='PERPETUAL').map(s=>s.symbol).sort()}
 async function klines(sym,interval,limit){const u=API+'/fapi/v1/klines?symbol='+encodeURIComponent(sym)+'&interval='+encodeURIComponent(interval)+'&limit='+limit;const d=await fetchJSON(u);if(!Array.isArray(d))throw new Error('Invalid klines');return d.map(x=>({t:+x[0],h:+x[2],l:+x[3],c:+x[4],ct:+x[6]}))}
 function analyze(sym,c){const closes=c.map(x=>x.c),e70=ema(closes,70),e200=ema(closes,200),s=session();let cross='NONE',crossT=null,times=[];for(let i=1;i<c.length;i++){if(c[i].ct>Date.now())continue;if(c[i].t<s.start||c[i].t>=s.end)continue;const a=e70[i-1],b=e200[i-1],x=e70[i],y=e200[i];if(![a,b,x,y].every(Number.isFinite))continue;if(a<=b&&x>b){cross='BULLISH';crossT=c[i].t}else if(a>=b&&x<y){cross='BEARISH';crossT=c[i].t}if(Number.isFinite(y)&&c[i].l<=y&&c[i].h>=y)times.push(c[i].t)}const last=c[c.length-1],li=c.length-1;return {symbol:sym,cross,crossT,ema70:e70[li],ema200:e200[li],touch:times.length>0,times,price:last.c,updated:Date.now()}}
 function setStatus(x){$('status').textContent=x}
 function resetStats(total){stats={scanned:0,bull:0,bear:0,touch:0,errors:0,total,weight:stats.weight};updateStats()}
 function updateStats(){$('total').textContent=stats.total;$('scanned').textContent=stats.scanned;$('bull').textContent=stats.bull;$('bear').textContent=stats.bear;$('touch').textContent=stats.touch;$('errors').textContent=stats.errors;$('weight').textContent=stats.weight??'—';$('bar').style.width=(stats.total?Math.min(100,stats.scanned/stats.total*100):0)+'%'}
-async function worker(queue,interval,limit){while(running&&!stopRequested){const sym=queue.shift();if(!sym)return;try{const r=analyze(sym,await klines(sym,interval,limit));const old=results.get(sym);if(old){if(old.cross==='BULLISH')stats.bull--;if(old.cross==='BEARISH')stats.bear--;if(old.touch)stats.touch--}results.set(sym,r);if(r.cross==='BULLISH')stats.bull++;if(r.cross==='BEARISH')stats.bear++;if(r.touch)stats.touch++}catch(e){stats.errors++}finally{stats.scanned++;updateStats();render();setStatus(`Scanning ${stats.scanned}/${stats.total} • ${sym}`);await sleep(SAFETY.minGap)}}}
+async function worker(queue,interval,limit){while(running&&!stopRequested){const sym=queue.shift();if(!sym)return;try{const r=analyze(sym,await klines(sym,interval,limit));const old=results.get(sym);if(old){if(old.cross==='BULLISH')stats.bull--;if(old.cross==='BEARISH')stats.bear--;if(old.touch)stats.touch--}results.set(sym,r);if(r.cross==='BULLISH')stats.bull++;if(r.cross==='BEARISH')stats.bear++;if(r.touch)stats.touch++}catch(e){stats.errors++}finally{stats.scanned++;updateStats();render();setStatus(`Scanning ${stats.scanned}/${stats.total} • ${sym}`);}}}
 async function scan(){if(running)return;running=true;stopRequested=false;$('start').disabled=true;$('stop').disabled=false;results.clear();const interval=$('interval').value,limit=+$('limit').value,con=+$('conc').value;try{setStatus('Loading Binance USDⓈ-M perpetual symbols…');symbols=await loadSymbols();resetStats(symbols.length);setStatus(`Found ${symbols.length} USDT perpetuals • scanning progressively…`);const q=[...symbols],safeCon=stats.weight>=SAFETY.softUsedWeight?Math.min(con,SAFETY.conservativeConcurrency):con;
 const workers=Array.from({length:Math.min(safeCon,q.length)},()=>worker(q,interval,limit));await Promise.all(workers);if(!stopRequested){setStatus(`Scan complete • ${stats.scanned}/${stats.total} symbols processed`);scheduleRefresh()}}catch(e){setStatus('Scanner error: '+(e.message||e))}finally{running=false;$('start').disabled=false;$('stop').disabled=true}}
 function stop(){stopRequested=true;running=false;$('start').disabled=false;$('stop').disabled=true;setStatus('Stop requested. Active requests will finish/cancel as soon as possible.');if(refreshTimer)clearTimeout(refreshTimer)}
@@ -132,7 +133,7 @@ arr.sort((a,b)=>{
  if(sort==='touchnew') return ((b.times.at(-1)||0)-(a.times.at(-1)||0))||a.symbol.localeCompare(b.symbol);
  if(sort==='crossold') return (a.crossT||Infinity)-(b.crossT||Infinity)||a.symbol.localeCompare(b.symbol);
  return (b.crossT||0)-(a.crossT||0)||a.symbol.localeCompare(b.symbol);
-});$('body').innerHTML=arr.length?arr.map(r=>`<tr><td><b>${r.symbol}</b></td><td class="${r.cross==='BULLISH'?'bull':r.cross==='BEARISH'?'bear':''}">${r.cross}</td><td>${r.crossT?ph(r.crossT):'—'}</td><td>${Number.isFinite(r.ema70)?r.ema70.toPrecision(10):'—'}</td><td>${Number.isFinite(r.ema200)?r.ema200.toPrecision(10):'—'}</td><td class="${r.touch?'touch':''}">${r.touch?'YES':'NO'}</td><td>${r.times.length?r.times.map(ph).join(', '):'—'}</td><td>${r.price.toPrecision(10)}</td><td><span class="badge">DONE</span></td></tr>`).join(''):'<tr><td colspan="9" class="empty">No matching results.</td></tr>'}
+});$('resultsBody').innerHTML=arr.length?arr.map(r=>`<tr><td><b>${r.symbol}</b></td><td class="${r.cross==='BULLISH'?'bull':r.cross==='BEARISH'?'bear':''}">${r.cross}</td><td>${r.crossT?ph(r.crossT):'—'}</td><td>${Number.isFinite(r.ema70)?r.ema70.toPrecision(10):'—'}</td><td>${Number.isFinite(r.ema200)?r.ema200.toPrecision(10):'—'}</td><td class="${r.touch?'touch':''}">${r.touch?'YES':'NO'}</td><td>${r.times.length?r.times.map(ph).join(', '):'—'}</td><td>${r.price.toPrecision(10)}</td><td><span class="badge">DONE</span></td></tr>`).join(''):'<tr><td colspan="9" class="empty">No matching results.</td></tr>'}
 function csv(){const arr=[...results.values()];if(!arr.length)return;const rows=[['Symbol','Cross','CrossTimePH','EMA70','EMA200','EMA200Touched','TouchTimesPH','Price']];arr.forEach(r=>rows.push([r.symbol,r.cross,r.crossT?ph(r.crossT):'',r.ema70,r.ema200,r.touch?'YES':'NO',r.times.map(ph).join(' | '),r.price]));const esc=v=>'"'+String(v??'').replaceAll('"','""')+'"';const blob=new Blob([rows.map(x=>x.map(esc).join(',')).join('\n')],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ema-cross-ema200-touch-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(a.href)}
 $('start').onclick=scan;$('stop').onclick=stop;$('csv').onclick=csv;$('clear').onclick=()=>{results.clear();resetStats(symbols.length);render()};['search','show','sort'].forEach(id=>$(id).addEventListener('input',render));$('interval').addEventListener('change',()=>{if(refreshTimer)clearTimeout(refreshTimer);$('next').textContent='—'});setInterval(()=>$('clock').textContent=ph(Date.now())+' PH',1000);
 </script>
